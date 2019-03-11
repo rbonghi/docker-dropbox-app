@@ -1,0 +1,10 @@
+version: '3'
+services:
+  dropbox:
+    container_name: dropbox
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dropbox
+    volumes:
+      - ./:/dropbox
