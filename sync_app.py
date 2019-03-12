@@ -31,8 +31,19 @@ class UpDown:
             print('Dropbox folder name:', folder)
             print('Local directory:', rootdir)
         self.dbx = dropbox.Dropbox(token)
-
+        
     def sync(self, option="default"):
+        if not os.listdir(self.rootdir):
+            print("Folder", self.rootdir, "is empty")
+            self.syncFromDB()
+        else:
+            print("Sync data")
+            #self.syncFromDB()
+        
+    def syncFromDB(self):
+        print("Sync from Dropbox")
+
+    def syncFromLocal(self, option="default"):
 
         for dn, dirs, files in os.walk(self.rootdir):
             subfolder = dn[len(self.rootdir):].strip(os.path.sep)
