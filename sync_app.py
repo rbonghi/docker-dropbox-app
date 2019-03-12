@@ -23,22 +23,7 @@ import dropbox
 # OAuth2 access token.
 TOKEN = os.environ['DROPBOX_TOKEN'] if "DROPBOX_TOKEN" in os.environ else ""
 
-parser = argparse.ArgumentParser(description='Sync ~/Downloads to Dropbox')
-parser.add_argument('folder', nargs='?', default='Downloads',
-                    help='Folder name in your Dropbox')
-parser.add_argument('rootdir', nargs='?', default='~/Downloads',
-                    help='Local directory to upload')
-parser.add_argument('--token', default=TOKEN,
-                    help='Access token '
-                    '(see https://www.dropbox.com/developers/apps)')
-parser.add_argument('--yes', '-y', action='store_true',
-                    help='Answer yes to all questions')
-parser.add_argument('--no', '-n', action='store_true',
-                    help='Answer no to all questions')
-parser.add_argument('--default', '-d', action='store_true',
-                    help='Take default answer on all questions')
-
-def main():
+def updown(token, folder, rootdir, verbose=False):
     """Main program.
 
     Parse command line, then iterate over files and directories under
@@ -46,26 +31,8 @@ def main():
     directories, and avoids duplicate uploads by comparing size and
     mtime with the server.
     """
-    args = parser.parse_args()
-    if sum([bool(b) for b in (args.yes, args.no, args.default)]) > 1:
-        print('At most one of --yes, --no, --default is allowed')
-        sys.exit(2)
-    if not args.token:
-        print('--token is mandatory')
-        sys.exit(2)
 
-    folder = args.folder
-    rootdir = os.path.expanduser(args.rootdir)
-    print('Dropbox folder name:', folder)
-    print('Local directory:', rootdir)
-    if not os.path.exists(rootdir):
-        print(rootdir, 'does not exist on your filesystem')
-        sys.exit(1)
-    elif not os.path.isdir(rootdir):
-        print(rootdir, 'is not a folder on your filesystem')
-        sys.exit(1)
-
-    dbx = dropbox.Dropbox(args.token)
+    dbx = dropbox.Dropbox(token)
 
     for dn, dirs, files in os.walk(rootdir):
         subfolder = dn[len(rootdir):].strip(os.path.sep)
@@ -244,4 +211,43 @@ def stopwatch(message):
         print('Total elapsed time for %s: %.3f' % (message, t1 - t0))
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Sync ~/dropbox to Dropbox')
+    parser.add_argument('folder', nargs='?', default='Downloads',
+                        help='Folder name in your Dropbox')
+    parser.add_argument('rootdir', nargs='?', default='~/Downloads',
+                        help='Local directory to upload')
+    parser.add_argument('--token', default=TOKEN,
+                        help='Access token '
+                        '(see https://www.dropbox.com/developers/apps)')
+    parser.add_argument('--yes', '-y', action='store_true',
+                        help='Answer yes to all questions')
+    parser.add_argument('--no', '-n', action='store_true',
+                        help='Answer no to all questions')
+    parser.add_argument('--default', '-d', action='store_true',
+                        help='Take default answer on all questions')
+            
+    verbose = True
+                        
+    # Parser arguments
+    args = parser.parse_args()
+    if sum([bool(b) for b in (args.yes, args.no, args.default)]) > 1:
+        print('At most one of --yes, --no, --default is allowed')
+        sys.exit(2)
+    if not args.token:
+        print('--token is mandatory')
+        sys.exit(2)  
+            
+    folder = args.folder
+    rootdir = os.path.expanduser(args.rootdir)
+    print('Dropbox folder name:', folder)
+    print('Local directory:', rootdir)
+    if not os.path.exists(rootdir):
+        print(rootdir, 'does not exist on your filesystem')
+        sys.exit(1)
+    elif not os.path.isdir(rootdir):
+        print(rootdir, 'is not a folder on your filesystem')
+        sys.exit(1)
+            
+    # Start updown sync        
+    updown(args.token, folder, rootdir, verbose)
+# EOF
