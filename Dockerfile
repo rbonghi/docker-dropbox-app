@@ -9,11 +9,14 @@ RUN git clone https://github.com/dropbox/dropbox-sdk-python.git \
     && cd dropbox-sdk-python \
     && python setup.py install
     
-ENV TOKEN=""
+ENV DROPBOX_TOKEN=""
 
-WORKDIR "/dropbox-sdk-python/example"
+VOLUME ["/dropbox"]
 
-VOLUME ["/shared_data"]
+COPY sync_app.py /root
 
-ENTRYPOINT ["python", "updown.py", "--token", "$TOKEN" ]
-CMD ["/", "/shared_data"]
+WORKDIR "/root"
+
+ENTRYPOINT ["python", "sync_app.py", "-y" ]
+CMD [ "/", "/dropbox" ]
+

@@ -2,6 +2,8 @@ version: '3'
 services:
   dropbox:
     container_name: dropbox
+    environment:
+      - PYTHONUNBUFFERED=1
     build:
       context: .
       dockerfile: Dockerfile
