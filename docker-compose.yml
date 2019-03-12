@@ -9,4 +9,5 @@ services:
       dockerfile: Dockerfile
     image: dropbox
     volumes:
-      - ./:/dropbox
+      - ./test:/dropbox
+      - ./:/root

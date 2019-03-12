@@ -13,7 +13,7 @@ ENV DROPBOX_TOKEN=""
 
 VOLUME ["/dropbox"]
 
-COPY sync_app.py /root
+#COPY sync_app.py /root
 
 WORKDIR "/root"
 

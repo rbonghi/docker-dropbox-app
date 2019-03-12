@@ -42,6 +42,20 @@ class UpDown:
         
     def syncFromDB(self):
         print("Sync from Dropbox")
+        
+        #res = self.dbx.files_list_folder("")
+        #print(res)
+        
+        listing = self.list_folder("", recursive=True)
+        #print(listing)
+        
+        for nname in listing:
+            md = listing[nname]
+            if (isinstance(md, dropbox.files.FileMetadata)):
+                print("File", nname)
+            if (isinstance(md, dropbox.files.FolderMetadata)):
+                print("Folder", nname)
+        
 
     def syncFromLocal(self, option="default"):
 
@@ -111,7 +125,7 @@ class UpDown:
             if self.verbose: print(message + '? [auto] NO')
             return False
 
-    def list_folder(self, subfolder):
+    def list_folder(self, subfolder, recursive=False):
         """List a folder.
 
         Return a dict mapping unicode filenames to
@@ -123,7 +137,7 @@ class UpDown:
         path = path.rstrip('/')
         try:
             with stopwatch('list_folder'):
-                res = self.dbx.files_list_folder(path)
+                res = self.dbx.files_list_folder(path, recursive=recursive)
         except dropbox.exceptions.ApiError as err:
             print('Folder listing failed for', path, '-- assumed empty:', err)
             return {}
