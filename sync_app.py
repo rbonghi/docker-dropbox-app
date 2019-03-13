@@ -40,21 +40,26 @@ class UpDown:
             print("Sync data")
             #self.syncFromDB()
         
-    def syncFromDB(self):
-        print("Sync from Dropbox")
-        
-        #res = self.dbx.files_list_folder("")
-        #print(res)
-        
-        listing = self.list_folder("", recursive=True)
-        #print(listing)
-        
+    def syncFromDB(self, subfolder=""):
+        """ Recursive function to download all files from dropbox
+        """
+        listing = self.list_folder(subfolder)
         for nname in listing:
             md = listing[nname]
             if (isinstance(md, dropbox.files.FileMetadata)):
-                print("File", nname)
+                path = self.rootdir + subfolder + "/" + nname
+                print("File", path)
+                res = self.download(subfolder, nname)
+                # Save data to fiile
+                out = open(path, 'wb')
+                out.write(res)
+                out.close()
             if (isinstance(md, dropbox.files.FolderMetadata)):
-                print("Folder", nname)
+                path = self.rootdir + subfolder + "/" + nname
+                print("Folder", path)
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                self.syncFromDB(subfolder=subfolder + "/" + nname)
         
 
     def syncFromLocal(self, option="default"):
