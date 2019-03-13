@@ -35,12 +35,13 @@ class UpDown:
     def sync(self, option="default"):
         if not os.listdir(self.rootdir):
             print("Folder", self.rootdir, "is empty")
-            self.syncFromDB()
-        else:
-            print("Sync data")
-            #self.syncFromDB()
+            
+        self.syncFromDropBox()
         
-    def syncFromDB(self, subfolder=""):
+        self.syncFromLocal(option="no")
+
+        
+    def syncFromDropBox(self, subfolder=""):
         """ Recursive function to download all files from dropbox
         """
         listing = self.list_folder(subfolder)
@@ -59,8 +60,7 @@ class UpDown:
                 print("Folder", path)
                 if not os.path.exists(path):
                     os.makedirs(path)
-                self.syncFromDB(subfolder=subfolder + "/" + nname)
-        
+                self.syncFromDropBox(subfolder=subfolder + "/" + nname)
 
     def syncFromLocal(self, option="default"):
 
@@ -112,7 +112,7 @@ class UpDown:
                     print('Skipping temporary directory:', name)
                 elif name == '__pycache__':
                     print('Skipping generated directory:', name)
-                elif yesno('Descend into %s' % name, True, args):
+                elif self.yesno('Descend into %s' % name, True, option):
                     print('Keeping directory:', name)
                     keep.append(name)
                 else:
