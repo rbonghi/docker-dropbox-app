@@ -1,8 +1,8 @@
-"""Upload the contents of your Downloads folder to Dropbox.
+"""Syncronization system for APP Dropbox.
 
-This is an example app for API v2.
+Starting point from [1] Use API v2.
 
-Idea from https://github.com/dropbox/dropbox-sdk-python/blob/master/example/updown.py
+[1] https://github.com/dropbox/dropbox-sdk-python/blob/master/example/updown.py
 """
 
 from __future__ import print_function
@@ -12,7 +12,10 @@ import contextlib
 import os, sys, time, logging, datetime
 import six
 import unicodedata
-
+# How it is work watchdog
+# * https://pythonhosted.org/watchdog/quickstart.html#a-simple-example
+# * https://stackoverflow.com/questions/32923451/how-to-run-an-function-when-anything-changes-in-a-dir-with-python-watchdog
+# * https://stackoverflow.com/questions/46372041/seeing-multiple-events-with-python-watchdog-library-when-folders-are-created
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 
@@ -39,23 +42,32 @@ class UpDown(LoggingEventHandler):
         
     #def dispatch(self, event):
     #    print("dispatch")
-        
     #def on_any_event(self, event):
     #    print("on_any_event")
         
     def on_modified(self, event):
         print("on_modified")
+        # Syncronization from Local to Dropbox
+        self.syncFromLocal(option="no")
         
     def sync(self, option="default"):
-        # Sync 
+        """ Sync from dropbox to Local and viceversa
+        """
         if os.listdir(self.rootdir):
             self.syncFromLocal(option="no")
         else:
             print("Folder", self.rootdir, "is empty")
-            
         self.syncFromDropBox()
 
-        
+    def storefile(self, res, filename, timedb):
+        out = open(filename, 'wb')
+        out.write(res)
+        out.close()
+        # Fix time with md time
+        # https://nitratine.net/blog/post/change-file-modification-time-in-python/
+        modTime = time.mktime(timedb.timetuple())
+        os.utime(filename, (modTime, modTime))
+                
     def syncFromDropBox(self, subfolder=""):
         """ Recursive function to download all files from dropbox
         """
@@ -64,15 +76,23 @@ class UpDown(LoggingEventHandler):
             md = listing[nname]
             if (isinstance(md, dropbox.files.FileMetadata)):
                 path = self.rootdir + subfolder + "/" + nname
-                print("File", path)
                 res = self.download(subfolder, nname)
-                # Save data to fiile
-                out = open(path, 'wb')
-                out.write(res)
-                out.close()
+                # Store file in folder
+                if os.path.exists(path):
+                    mtime = os.path.getmtime(path)
+                    mtime_dt = datetime.datetime(*time.gmtime(mtime)[:6])
+                    size = os.path.getsize(path)
+                    #print("MDTime file:", mtime_dt)
+                    #print("MDTime DropBox:", md.client_modified)
+                    if(mtime_dt == md.client_modified and size == md.size):
+                        print(nname, 'is already synced [stats match]')
+                    else:
+                        self.storefile(res, path, md.client_modified)
+                else:
+                    self.storefile(res, path, md.client_modified)
             if (isinstance(md, dropbox.files.FolderMetadata)):
                 path = self.rootdir + subfolder + "/" + nname
-                print("Folder", path)
+                if self.verbose: print('Descending into', nname, '...')
                 if not os.path.exists(path):
                     os.makedirs(path)
                 self.syncFromDropBox(subfolder=subfolder + "/" + nname)
@@ -82,7 +102,7 @@ class UpDown(LoggingEventHandler):
         for dn, dirs, files in os.walk(self.rootdir):
             subfolder = dn[len(self.rootdir):].strip(os.path.sep)
             listing = self.list_folder(subfolder)
-            print('Descending into', subfolder, '...')
+            if self.verbose: print('Descending into', subfolder, '...')
 
             # First do all the files.
             for name in files:
@@ -229,9 +249,9 @@ directories, and avoids duplicate uploads by comparing size and
 mtime with the server.
 """
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s - %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S')
+    #logging.basicConfig(level=logging.INFO,
+    #                    format='%(asctime)s - %(message)s',
+    #                    datefmt='%Y-%m-%d %H:%M:%S')
 
     parser = argparse.ArgumentParser(description='Sync ~/dropbox to Dropbox')
     parser.add_argument('folder', nargs='?', default=FOLDER,
@@ -247,9 +267,8 @@ if __name__ == '__main__':
                         help='Answer no to all questions')
     parser.add_argument('--default', '-d', action='store_true',
                         help='Take default answer on all questions')
-            
-    verbose = False
-                        
+    parser.add_argument('--verbose', '-v', action='store_true',
+                        help='Show all Take default answer on all questions')
     # Parser arguments
     args = parser.parse_args()
     if sum([bool(b) for b in (args.yes, args.no, args.default)]) > 1:
@@ -275,7 +294,11 @@ if __name__ == '__main__':
         print(rootdir, 'is not a folder on your filesystem')
         sys.exit(1)
     # Start updown sync        
-    updown = UpDown(args.token, folder, rootdir, verbose)
+    updown = UpDown(args.token, folder, rootdir, args.verbose)
+    
+    updown.syncFromDropBox()
+    
+    sys.exit(1)
     # Initialize file and folder observer
     observer = Observer()
     observer.schedule(updown, rootdir, recursive=True)
