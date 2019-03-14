@@ -9,9 +9,12 @@ from __future__ import print_function
 
 import argparse
 import contextlib
-import os, sys, time, datetime
+import os, sys, time, logging, datetime
 import six
 import unicodedata
+
+from watchdog.observers import Observer
+from watchdog.events import LoggingEventHandler
 
 if sys.version.startswith('2'):
     input = raw_input  # noqa: E501,F821; pylint: disable=redefined-builtin,undefined-variable,useless-suppression
@@ -21,7 +24,7 @@ import dropbox
 # OAuth2 access token.
 TOKEN = os.environ['DROPBOX_TOKEN'] if "DROPBOX_TOKEN" in os.environ else ""
 
-class UpDown:
+class UpDown(LoggingEventHandler):
 
     def __init__(self, token, folder, rootdir, verbose=False):
         self.folder = folder
@@ -32,13 +35,23 @@ class UpDown:
             print('Local directory:', rootdir)
         self.dbx = dropbox.Dropbox(token)
         
+    #def dispatch(self, event):
+    #    print("dispatch")
+        
+    #def on_any_event(self, event):
+    #    print("on_any_event")
+        
+    def on_modified(self, event):
+        print("on_modified")
+        
     def sync(self, option="default"):
-        if not os.listdir(self.rootdir):
+        # Sync 
+        if os.listdir(self.rootdir):
+            self.syncFromLocal(option="no")
+        else:
             print("Folder", self.rootdir, "is empty")
             
         self.syncFromDropBox()
-        
-        self.syncFromLocal(option="no")
 
         
     def syncFromDropBox(self, subfolder=""):
@@ -214,6 +227,10 @@ directories, and avoids duplicate uploads by comparing size and
 mtime with the server.
 """
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S')
+
     parser = argparse.ArgumentParser(description='Sync ~/dropbox to Dropbox')
     parser.add_argument('folder', nargs='?', default='Downloads',
                         help='Folder name in your Dropbox')
@@ -255,8 +272,17 @@ if __name__ == '__main__':
     elif not os.path.isdir(rootdir):
         print(rootdir, 'is not a folder on your filesystem')
         sys.exit(1)
-            
+
     # Start updown sync        
     updown = UpDown(args.token, folder, rootdir, verbose)
-    updown.sync(option)
+    # Initialize file and folder observer
+    observer = Observer()
+    observer.schedule(updown, rootdir, recursive=True)
+    observer.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
 # EOF
