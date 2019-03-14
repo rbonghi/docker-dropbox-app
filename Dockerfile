@@ -1,22 +1,17 @@
-FROM python:3-slim
+FROM python:3-alpine
 
-RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-    git \
- && rm -rf /var/lib/apt/lists/*
-
-RUN git clone https://github.com/dropbox/dropbox-sdk-python.git \
-    && cd dropbox-sdk-python \
-    && python setup.py install
-    
+# Install requirements
+COPY requirements.txt /root
+RUN pip install -r /root/requirements.txt
+# Define default dropbox folder in docker
 ENV DROPBOX_TOKEN=""
+ENV DROPBOX_FOLDER="/"
+ENV DROPBOX_ROOTDIR="/dropbox"
 
 VOLUME ["/dropbox"]
 
-#COPY sync_app.py /root
+COPY sync_app.py /root
 
 WORKDIR "/root"
 
 ENTRYPOINT ["python", "sync_app.py", "-y" ]
-CMD [ "/", "/dropbox" ]
-

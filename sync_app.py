@@ -23,6 +23,8 @@ import dropbox
 
 # OAuth2 access token.
 TOKEN = os.environ['DROPBOX_TOKEN'] if "DROPBOX_TOKEN" in os.environ else ""
+FOLDER = os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else "Downloads"
+ROOTDIR = os.environ['DROPBOX_ROOTDIR'] if "DROPBOX_ROOTDIR" in os.environ else "~/Downloads"
 
 class UpDown(LoggingEventHandler):
 
@@ -232,9 +234,9 @@ if __name__ == '__main__':
                         datefmt='%Y-%m-%d %H:%M:%S')
 
     parser = argparse.ArgumentParser(description='Sync ~/dropbox to Dropbox')
-    parser.add_argument('folder', nargs='?', default='Downloads',
+    parser.add_argument('folder', nargs='?', default=FOLDER,
                         help='Folder name in your Dropbox')
-    parser.add_argument('rootdir', nargs='?', default='~/Downloads',
+    parser.add_argument('rootdir', nargs='?', default=ROOTDIR,
                         help='Local directory to upload')
     parser.add_argument('--token', default=TOKEN,
                         help='Access token '
@@ -272,7 +274,6 @@ if __name__ == '__main__':
     elif not os.path.isdir(rootdir):
         print(rootdir, 'is not a folder on your filesystem')
         sys.exit(1)
-
     # Start updown sync        
     updown = UpDown(args.token, folder, rootdir, verbose)
     # Initialize file and folder observer
