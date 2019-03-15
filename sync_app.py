@@ -176,7 +176,7 @@ class UpDown(LoggingEventHandler):
             path = path.replace('//', '/')
         path = path.rstrip('/')
         try:
-            with stopwatch('list_folder'):
+            with self.stopwatch('list_folder'):
                 res = self.dbx.files_list_folder(path, recursive=recursive)
         except dropbox.exceptions.ApiError as err:
             print('Folder listing failed for', path, '-- assumed empty:', err)
@@ -195,7 +195,7 @@ class UpDown(LoggingEventHandler):
         path = '/%s/%s/%s' % (self.folder, subfolder.replace(os.path.sep, '/'), name)
         while '//' in path:
             path = path.replace('//', '/')
-        with stopwatch('download'):
+        with self.stopwatch('download'):
             try:
                 md, res = self.dbx.files_download(path)
             except dropbox.exceptions.HttpError as err:
@@ -219,7 +219,7 @@ class UpDown(LoggingEventHandler):
         mtime = os.path.getmtime(fullname)
         with open(fullname, 'rb') as f:
             data = f.read()
-        with stopwatch('upload %d bytes' % len(data)):
+        with self.stopwatch('upload %d bytes' % len(data)):
             try:
                 res = self.dbx.files_upload(
                     data, path, mode,
@@ -231,15 +231,15 @@ class UpDown(LoggingEventHandler):
         if self.verbose: print('uploaded as', res.name.encode('utf8'))
         return res
 
-@contextlib.contextmanager
-def stopwatch(message):
-    """Context manager to print how long a block of code took."""
-    t0 = time.time()
-    try:
-        yield
-    finally:
-        t1 = time.time()
-        print('Total elapsed time for %s: %.3f' % (message, t1 - t0))
+    @contextlib.contextmanager
+    def stopwatch(self, message):
+        """Context manager to print how long a block of code took."""
+        t0 = time.time()
+        try:
+            yield
+        finally:
+            t1 = time.time()
+            if self.verbose: print('Total elapsed time for %s: %.3f' % (message, t1 - t0))
 
 """Main program.
 
