@@ -185,6 +185,19 @@ class UpDown(LoggingEventHandler):
                 rv[entry.name] = entry
             return rv
 
+    def delete(self, subfolder, name):
+        """ Delete a file from dropbox.
+        Return True if is fully delete from dropbox
+        """
+        path = self.normalizePath(subfolder, name)
+        with self.stopwatch('delete'):
+            try:
+                md = self.dbx.files_delete(path)
+            except dropbox.exceptions.ApiError as err:
+                print('*** API error', err)
+                return False
+        return True
+
     def download(self, subfolder, name):
         """Download a file.
         Return the bytes of the file, or None if it doesn't exist.
