@@ -82,8 +82,6 @@ class UpDown(LoggingEventHandler):
                     mtime = os.path.getmtime(path)
                     mtime_dt = datetime.datetime(*time.gmtime(mtime)[:6])
                     size = os.path.getsize(path)
-                    #print("MDTime file:", mtime_dt)
-                    #print("MDTime DropBox:", md.client_modified)
                     if(mtime_dt == md.client_modified and size == md.size):
                         print(nname, 'is already synced [stats match]')
                     else:
@@ -189,12 +187,9 @@ class UpDown(LoggingEventHandler):
 
     def download(self, subfolder, name):
         """Download a file.
-
         Return the bytes of the file, or None if it doesn't exist.
         """
-        path = '/%s/%s/%s' % (self.folder, subfolder.replace(os.path.sep, '/'), name)
-        while '//' in path:
-            path = path.replace('//', '/')
+        path = self.normalizePath(subfolder, name)
         with self.stopwatch('download'):
             try:
                 md, res = self.dbx.files_download(path)
@@ -207,12 +202,9 @@ class UpDown(LoggingEventHandler):
 
     def upload(self, fullname, subfolder, name, overwrite=False):
         """Upload a file.
-
         Return the request response, or None in case of error.
         """
-        path = '/%s/%s/%s' % (self.folder, subfolder.replace(os.path.sep, '/'), name)
-        while '//' in path:
-            path = path.replace('//', '/')
+        path = self.normalizePath(subfolder, name)
         mode = (dropbox.files.WriteMode.overwrite
                 if overwrite
                 else dropbox.files.WriteMode.add)
@@ -231,6 +223,14 @@ class UpDown(LoggingEventHandler):
         if self.verbose: print('uploaded as', res.name.encode('utf8'))
         return res
 
+    def normalizePath(self, subfolder, name):
+        """ Normalize folder for Dropbox syncronization.
+        """
+        path = '/%s/%s/%s' % (self.folder, subfolder.replace(os.path.sep, '/'), name)
+        while '//' in path:
+            path = path.replace('//', '/')
+        return path
+
     @contextlib.contextmanager
     def stopwatch(self, message):
         """Context manager to print how long a block of code took."""
@@ -241,14 +241,15 @@ class UpDown(LoggingEventHandler):
             t1 = time.time()
             if self.verbose: print('Total elapsed time for %s: %.3f' % (message, t1 - t0))
 
-"""Main program.
 
-Parse command line, then iterate over files and directories under
-rootdir and upload all files.  Skips some temporary files and
-directories, and avoids duplicate uploads by comparing size and
-mtime with the server.
-"""
 if __name__ == '__main__':
+    """Main program.
+
+    Parse command line, then iterate over files and directories under
+    rootdir and upload all files.  Skips some temporary files and
+    directories, and avoids duplicate uploads by comparing size and
+    mtime with the server.
+    """
     #logging.basicConfig(level=logging.INFO,
     #                    format='%(asctime)s - %(message)s',
     #                    datefmt='%Y-%m-%d %H:%M:%S')

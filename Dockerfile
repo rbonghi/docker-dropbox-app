@@ -10,8 +10,8 @@ ENV DROPBOX_ROOTDIR="/dropbox"
 
 VOLUME ["/dropbox"]
 
-COPY sync_app.py /root
+COPY DropBoxSync.py /root
 
 WORKDIR "/root"
 
-ENTRYPOINT ["python", "sync_app.py", "-y" ]
+ENTRYPOINT ["python", "DropBoxSync.py", "-y" ]
