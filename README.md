@@ -64,6 +64,13 @@ services:
 ```
 
 # Start without docker
+If you want launch this script without start a docker container:
+```
+python DropboxSync.py <DROPBOX_FOLDER> <ROOT_FOLDER> --token <WRITE YOUR TOKEN HERE> [options]
+```
+For `[options]`:
+* **--verbose** Show in detail all steps for each sync
+* **--fromLocal** or **--fromDropbox** Read [Configuration](#configuration)
 
 # Make manifest for amd64 and arm
 Use this manifest for multi architect version
