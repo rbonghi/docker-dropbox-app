@@ -10,8 +10,8 @@ from __future__ import print_function
 import argparse
 import contextlib
 import os, sys, time, logging, datetime
-import six
-import unicodedata
+import threading
+import six, unicodedata
 # How it is work watchdog
 # * https://pythonhosted.org/watchdog/quickstart.html#a-simple-example
 # * https://stackoverflow.com/questions/32923451/how-to-run-an-function-when-anything-changes-in-a-dir-with-python-watchdog
@@ -31,6 +31,19 @@ import dropbox
 TOKEN = os.environ['DROPBOX_TOKEN'] if "DROPBOX_TOKEN" in os.environ else ""
 FOLDER = os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else "Downloads"
 ROOTDIR = os.environ['DROPBOX_ROOTDIR'] if "DROPBOX_ROOTDIR" in os.environ else "~/Downloads"
+INTERVAL = int(os.environ['DROPBOX_INTERVAL']) if "DROPBOX_INTERVAL" in os.environ else 60
+
+def do_every(interval, worker_func, iterations = 0):
+    """ Repeat an action in thread.
+        Follow https://stackoverflow.com/questions/11488877/periodically-execute-function-in-thread-in-real-time-every-n-seconds
+    """
+    if iterations != 1:
+        threading.Timer(
+            interval,
+            do_every, [interval, worker_func, 0 if iterations == 0 else iterations-1]
+        ).start ()
+    # Run function
+    worker_func ()
 
 class UpDown(PatternMatchingEventHandler):
 
@@ -44,64 +57,18 @@ class UpDown(PatternMatchingEventHandler):
             print('Local directory:', rootdir)
         self.dbx = dropbox.Dropbox(token)
         
-    def getFolderAndFile(self, src_path):
-        abs_path = os.path.dirname(src_path)
-        subfolder = os.path.relpath(abs_path, self.rootdir)
-        subfolder = subfolder if subfolder != "." else "" 
-        name = os.path.basename(src_path)
-        return subfolder, name
-        
-    def on_moved(self, event):
-        subfolder, src_name = self.getFolderAndFile(event.src_path)
-        _, dest_name = self.getFolderAndFile(event.dest_path)
-        print("Moved", src_name, "->", dest_name, "in folder", subfolder)
-        self.move(subfolder, src_name, dest_name)
-    
-    def on_created(self, event):
-        subfolder, name = self.getFolderAndFile(event.src_path)
-        print("Created", name, "in folder", subfolder)
-        self.upload(event.src_path, subfolder, name)
-        
-    def on_deleted(self, event):
-        subfolder, name = self.getFolderAndFile(event.src_path)
-        print("Deleted", name, "in folder", subfolder)
-        self.delete(subfolder, name)
-        
-    def on_modified(self, event):
-        if not event.is_directory:
-            subfolder, name = self.getFolderAndFile(event.src_path)
-            print("Modified", name, "in folder", subfolder)
-            # Syncronization from Local to Dropbox
-            self.upload(event.src_path, subfolder, name, overwrite=True)
-        
-    def sync(self, option="default"):
-        """ Sync from dropbox to Local and viceversa
-        """
-        if os.listdir(self.rootdir):
-            self.syncFromLocal(option="no")
-        else:
-            print("Folder", self.rootdir, "is empty")
-        self.syncFromDropBox()
-
-    def storefile(self, res, filename, timedb):
-        """ Store and fix datetime with dropbox datetime.
-        """
-        out = open(filename, 'wb')
-        out.write(res)
-        out.close()
-        # Fix time with md time
-        # https://nitratine.net/blog/post/change-file-modification-time-in-python/
-        modTime = time.mktime(timedb.timetuple())
-        os.utime(filename, (modTime, modTime))
-                
-    def syncFromDropBox(self, subfolder=""):
+    def syncFromDropbox(self, subfolder=""):
         """ Recursive function to download all files from dropbox
         """
         listing = self.list_folder(subfolder)
+
+        # Remove all folder listed
+        for name in list(set(os.listdir(self.rootdir + subfolder))-set(listing.keys())):
+            self.delete(subfolder, name)
         for nname in listing:
             md = listing[nname]
+            path = self.rootdir + subfolder + "/" + nname
             if (isinstance(md, dropbox.files.FileMetadata)):
-                path = self.rootdir + subfolder + "/" + nname
                 res = self.download(subfolder, nname)
                 # Store file in folder
                 if os.path.exists(path):
@@ -115,11 +82,10 @@ class UpDown(PatternMatchingEventHandler):
                 else:
                     self.storefile(res, path, md.client_modified)
             if (isinstance(md, dropbox.files.FolderMetadata)):
-                path = self.rootdir + subfolder + "/" + nname
                 if self.verbose: print('Descending into', nname, '...')
                 if not os.path.exists(path):
                     os.makedirs(path)
-                self.syncFromDropBox(subfolder=subfolder + "/" + nname)
+                self.syncFromDropbox(subfolder=subfolder + "/" + nname)
 
     def syncFromLocal(self):
 
@@ -178,6 +144,36 @@ class UpDown(PatternMatchingEventHandler):
                     print('OK, skipping directory:', name)
             dirs[:] = keep
 
+    def getFolderAndFile(self, src_path):
+        abs_path = os.path.dirname(src_path)
+        subfolder = os.path.relpath(abs_path, self.rootdir)
+        subfolder = subfolder if subfolder != "." else "" 
+        name = os.path.basename(src_path)
+        return subfolder, name
+        
+    def on_moved(self, event):
+        subfolder, src_name = self.getFolderAndFile(event.src_path)
+        _, dest_name = self.getFolderAndFile(event.dest_path)
+        print("Moved", src_name, "->", dest_name, "in folder: \"{}\"".format(subfolder))
+        self.move(subfolder, src_name, dest_name)
+    
+    def on_created(self, event):
+        subfolder, name = self.getFolderAndFile(event.src_path)
+        print("Created", name, "in folder: \"{}\"".format(subfolder))
+        self.upload(event.src_path, subfolder, name)
+        
+    def on_deleted(self, event):
+        subfolder, name = self.getFolderAndFile(event.src_path)
+        print("Deleted", name, "in folder: \"{}\"".format(subfolder))
+        self.delete(subfolder, name)
+        
+    def on_modified(self, event):
+        if not event.is_directory:
+            subfolder, name = self.getFolderAndFile(event.src_path)
+            print("Modified", name, "in folder: \"{}\"".format(subfolder))
+            # Syncronization from Local to Dropbox
+            self.upload(event.src_path, subfolder, name, overwrite=True)
+
     def list_folder(self, subfolder, recursive=False):
         """List a folder.
 
@@ -199,6 +195,17 @@ class UpDown(PatternMatchingEventHandler):
             for entry in res.entries:
                 rv[entry.name] = entry
             return rv
+
+    def storefile(self, res, filename, timedb):
+        """ Store and fix datetime with dropbox datetime.
+        """
+        out = open(filename, 'wb')
+        out.write(res)
+        out.close()
+        # Fix time with md time
+        # https://nitratine.net/blog/post/change-file-modification-time-in-python/
+        modTime = time.mktime(timedb.timetuple())
+        os.utime(filename, (modTime, modTime))
 
     def move(self, subfolder, src_name, dest_name):
         """ Move file or folder from dropbox.
@@ -286,7 +293,6 @@ class UpDown(PatternMatchingEventHandler):
             t1 = time.time()
             if self.verbose: print('Total elapsed time for %s: %.3f' % (message, t1 - t0))
 
-
 if __name__ == '__main__':
     """Main program.
 
@@ -307,10 +313,19 @@ if __name__ == '__main__':
     parser.add_argument('--token', default=TOKEN,
                         help='Access token '
                         '(see https://www.dropbox.com/developers/apps)')
+    parser.add_argument('--interval', default=INTERVAL,
+                        help='Interval to sync from dropbox')
+    parser.add_argument('--fromDropbox', action='store_true',
+                        help='Direction to synchronize Dropbox')
+    parser.add_argument('--fromLocal', action='store_true',
+                        help='Direction to synchronize Dropbox')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Show all Take default answer on all questions')
     # Parser arguments
     args = parser.parse_args()
+    if sum([bool(b) for b in (args.fromDropbox, args.fromLocal)]) > 1:
+        print('At most one of --fromDropbox or --fromLocal is allowed')
+        sys.exit(2)
     if not args.token:
         print('--token is mandatory')
         sys.exit(2) 
@@ -326,19 +341,22 @@ if __name__ == '__main__':
     # Start updown sync        
     updown = UpDown(args.token, folder, rootdir, args.verbose)
     
-    updown.syncFromLocal()
-    
-    # Initialize file and folder observer
-    observer = Observer()
-    observer.schedule(updown, rootdir, recursive=True)
-    
     print("DropboxSync [{}]".format(colored("START", "green")))
     
-    observer.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
+    if args.fromDropbox:
+        updown.syncFromDropbox()
+        do_every(args.interval, updown.syncFromDropbox())
+    
+    if args.fromLocal:
+        updown.syncFromLocal()
+        # Initialize file and folder observer
+        observer = Observer()
+        observer.schedule(updown, rootdir, recursive=True)
+        observer.start()
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            observer.stop()
+        observer.join()
 # EOF

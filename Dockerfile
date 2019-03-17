@@ -15,3 +15,4 @@ COPY DropBoxSync.py /root
 WORKDIR "/root"
 
 ENTRYPOINT ["python", "DropBoxSync.py" ]
+CMD ["--fromLocal"]
