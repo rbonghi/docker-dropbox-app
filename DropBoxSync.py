@@ -84,6 +84,8 @@ class UpDown(PatternMatchingEventHandler):
         self.syncFromDropBox()
 
     def storefile(self, res, filename, timedb):
+        """ Store and fix datetime with dropbox datetime.
+        """
         out = open(filename, 'wb')
         out.write(res)
         out.close()
@@ -129,8 +131,6 @@ class UpDown(PatternMatchingEventHandler):
             # First do all the files.
             for name in files:
                 fullname = os.path.join(dn, name)
-                print("fullname:", fullname)
-                print("subfolder:", subfolder, "- name:", name)
                 if not isinstance(name, six.text_type):
                     name = name.decode('utf-8')
                 nname = unicodedata.normalize('NFC', name)
@@ -171,7 +171,7 @@ class UpDown(PatternMatchingEventHandler):
                     print('Skipping temporary directory:', name)
                 elif name == '__pycache__':
                     print('Skipping generated directory:', name)
-                elif self.yesno('Descend into %s' % name, True, option):
+                elif True: # self.yesno('Descend into %s' % name, True, option):
                     print('Keeping directory:', name)
                     keep.append(name)
                 else:
@@ -241,10 +241,6 @@ class UpDown(PatternMatchingEventHandler):
         data = res.content
         if self.verbose: print(len(data), 'bytes; md:', md)
         return data
-        
-    def createFolder(self, fullname, subfolder, name):
-        path = self.normalizePath(subfolder, name)
-        self.dbx.files_create_folder(path)
 
     def upload(self, fullname, subfolder, name, overwrite=False):
         """Upload a file.
@@ -311,8 +307,6 @@ if __name__ == '__main__':
     parser.add_argument('--token', default=TOKEN,
                         help='Access token '
                         '(see https://www.dropbox.com/developers/apps)')
-    parser.add_argument('--fromDropbox', '-db', action='store_true',
-                        help='Syncronize from Dropbox first')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Show all Take default answer on all questions')
     # Parser arguments

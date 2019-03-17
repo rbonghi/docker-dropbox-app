@@ -14,4 +14,4 @@ COPY DropBoxSync.py /root
 
 WORKDIR "/root"
 
-ENTRYPOINT ["python", "DropBoxSync.py", "-y" ]
+ENTRYPOINT ["python", "DropBoxSync.py" ]
