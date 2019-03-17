@@ -1,5 +1,6 @@
 # docker-dropbox-app
-Syncronization dropbox app
+[![](https://images.microbadger.com/badges/image/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own image badge on microbadger.com")
+[![](https://images.microbadger.com/badges/version/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own version badge on microbadger.com") Syncronization dropbox app
 
 How to start up the docker-dropbox app machine:
 1. Create your App in dropbox
@@ -8,20 +9,14 @@ How to start up the docker-dropbox app machine:
 version: '3'
 services:
   dropbox:
-    container_name: dropbox
+    image: rbonghi/dropbox
     environment:
       - PYTHONUNBUFFERED=1
       - DROPBOX_TOKEN=<WRITE YOUR TOKEN HERE>
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: dropbox
     volumes:
       - <FOLDER YOU WANT SYNC>:/dropbox
 ```
 3. start your docker:
 ```
-docker-compuse up
+docker-compose up
 ```
-  
-  
