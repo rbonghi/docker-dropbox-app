@@ -389,7 +389,11 @@ if __name__ == '__main__':
         do_every(args.interval, updown.syncFromDropbox())
     
     if args.fromLocal:
-        updown.syncFromLocal()
+        if not os.listdir(rootdir):
+            cprint("Directory is empty, start first download", "yellow")
+            updown.syncFromDropbox()
+        else:
+            updown.syncFromLocal()
         cprint("Ready to sync", "green")
         # Initialize file and folder observer
         observer = Observer()
