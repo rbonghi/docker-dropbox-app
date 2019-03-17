@@ -12,20 +12,22 @@ If you add in your root a file `.dropboxignore` you can select witch type of fil
 
 ## Start with docker
 To use this docker is really easy:
-1. Create your App in dropbox
-2. Pull this docker
+1. Create your [App in dropbox](https://www.dropbox.com/developers/reference/getting-started#app%20console)
+2. Generated access token
+3. Pull this docker
 ```
 docker pull rbonghi/dropbox
 ```
-3. Run your docker
+4. Run your docker
 ```
 docker run -e DROPBOX_TOKEN=<WRITE YOUR TOKEN HERE> -v <FOLDER YOU WANT SYNC>:/dropbox dropbox
 ```
 
 ## Start with docker-compose
 How to start up the docker-dropbox app machine:
-1. Create your App in dropbox
-2. Write your docker-compose.yml file or add:
+1. Create your [App in dropbox](https://www.dropbox.com/developers/reference/getting-started#app%20console)
+2. Generated access token
+3. Write your docker-compose.yml file or add:
 ```yml
 version: '3'
 services:
@@ -37,7 +39,7 @@ services:
     volumes:
       - <FOLDER YOU WANT SYNC>:/dropbox
 ```
-3. start your docker:
+4. start your docker:
 ```
 docker-compose up
 ```
