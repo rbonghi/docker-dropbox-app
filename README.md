@@ -1,8 +1,10 @@
 # docker-dropbox-app
-Syncronization dropbox app
+:whale: Docker syncronization container for Dropbox using a token app 
 
 - AMD64 [![](https://images.microbadger.com/badges/version/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own image badge on microbadger.com") 
 - ARM64 [![](https://images.microbadger.com/badges/version/rbonghi/dropbox:arm64-latest.svg)](https://microbadger.com/images/rbonghi/dropbox:arm64-latest "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/rbonghi/dropbox:arm64-latest.svg)](https://microbadger.com/images/rbonghi/dropbox:arm64-latest "Get your own image badge on microbadger.com") 
+
+Docker hub repos: https://hub.docker.com/r/rbonghi/dropbox
 
 When your docker is ready, all files and folders will be sync in **realtime**. A watchdog check every time if a file or folder is created, deleted or modified, and will be update your dropbox folder.
 
