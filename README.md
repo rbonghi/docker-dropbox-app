@@ -71,6 +71,7 @@ python DropboxSync.py <DROPBOX_FOLDER> <ROOT_FOLDER> --token <WRITE YOUR TOKEN H
 For `[options]`:
 * **--verbose** Show in detail all steps for each sync
 * **--fromLocal** or **--fromDropbox** Read [Configuration](#configuration)
+* **--interval** [default=60s] The Interval to sync from Dropbox in **--fromDropbox** mode
 
 # Make manifest for amd64 and arm
 Use this manifest for multi architect version
