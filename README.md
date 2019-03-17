@@ -1,8 +1,22 @@
 # docker-dropbox-app
 Syncronization dropbox app
 
-[![](https://images.microbadger.com/badges/image/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own image badge on microbadger.com") [![](https://images.microbadger.com/badges/version/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own version badge on microbadger.com") 
+- AMD64 [![](https://images.microbadger.com/badges/version/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own image badge on microbadger.com") 
+- ARM64 [![](https://images.microbadger.com/badges/version/rbonghi/dropbox:arm64-latest.svg)](https://microbadger.com/images/rbonghi/dropbox:arm64-latest "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/rbonghi/dropbox:arm64-latest.svg)](https://microbadger.com/images/rbonghi/dropbox:arm64-latest "Get your own image badge on microbadger.com") 
 
+## Start with docker
+To use this docker is really easy:
+1. Create your App in dropbox
+2. Pull this docker
+```
+docker pull rbonghi/dropbox
+```
+3. Run your docker
+```
+docker run -e DROPBOX_TOKEN=<WRITE YOUR TOKEN HERE> -v <FOLDER YOU WANT SYNC>:/dropbox dropbox
+```
+
+## Start with docker-compose
 How to start up the docker-dropbox app machine:
 1. Create your App in dropbox
 2. Write your docker-compose.yml file or add:
@@ -21,7 +35,7 @@ services:
 ```
 docker-compose up
 ```
- 
+
 # Make manifest for amd64 and arm
 Use this manifest for multi architect version
 ```
