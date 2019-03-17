@@ -10,6 +10,7 @@ from __future__ import print_function
 import argparse
 import contextlib
 import os, sys, time, logging, datetime
+import fnmatch, re
 import threading
 import six, unicodedata
 # How it is work watchdog
@@ -21,6 +22,8 @@ from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 # Colored terminal - https://pypi.org/project/termcolor/
 from termcolor import colored, cprint
+# Functions and decorators
+from functools import wraps
 
 if sys.version.startswith('2'):
     input = raw_input  # noqa: E501,F821; pylint: disable=redefined-builtin,undefined-variable,useless-suppression
@@ -45,17 +48,42 @@ def do_every(interval, worker_func, iterations = 0):
     # Run function
     worker_func ()
 
+def check_dropboxignore(func):
+    """ Reload scripts functions """
+    @wraps(func)
+    def wrapped(self, event):
+        # Check before create if match with dropboxignore
+        if event.src_path == self.rootdir + "/" + self.dropboxignore:
+            self.loadDropboxIgnore()
+        return func(self, event)
+    return wrapped
+
 class UpDown(PatternMatchingEventHandler):
 
-    def __init__(self, token, folder, rootdir, verbose=False):
+    def __init__(self, token, folder, rootdir, dropboxignore=".dropboxignore", verbose=False):
         super(UpDown, self).__init__(ignore_patterns=["*.swp"])
         self.folder = folder
         self.rootdir = rootdir
         self.verbose = verbose
+        self.dropboxignore = dropboxignore
         if verbose:
             print('Dropbox folder name:', folder)
             print('Local directory:', rootdir)
         self.dbx = dropbox.Dropbox(token)
+        # Load DropboxIgnore list
+        self.loadDropboxIgnore()
+        
+    def loadDropboxIgnore(self):
+        path = self.rootdir + "/" + self.dropboxignore
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                ignore_files = f.read().splitlines()
+        else:
+            ignore_files = []
+        # Upda exclude list
+        self.excludes = r'|'.join([fnmatch.translate(x) for x in ignore_files]) or r'$.'
+        #if self.verbose: 
+        print("Update excludes:", ignore_files)
         
     def syncFromDropbox(self, subfolder=""):
         """ Recursive function to download all files from dropbox
@@ -94,19 +122,20 @@ class UpDown(PatternMatchingEventHandler):
             listing = self.list_folder(subfolder)
             if self.verbose: print('Descending into', subfolder, '...')
 
+            # exclude dirs
+            dirs[:] = [os.path.join(subfolder, d) for d in dirs]
+            dirs[:] = [d for d in dirs if not re.match(self.excludes, d)]
+            # exclude files
+            files = [os.path.join(subfolder, f) for f in files]
+            files = [f for f in files if not re.match(self.excludes, f)]
+
             # First do all the files.
             for name in files:
                 fullname = os.path.join(dn, name)
                 if not isinstance(name, six.text_type):
                     name = name.decode('utf-8')
                 nname = unicodedata.normalize('NFC', name)
-                if name.startswith('.'):
-                    print('Skipping dot file:', name)
-                elif name.startswith('@') or name.endswith('~'):
-                    print('Skipping temporary file:', name)
-                elif name.endswith('.pyc') or name.endswith('.pyo'):
-                    print('Skipping generated file:', name)
-                elif nname in listing:
+                if nname in listing:
                     md = listing[nname]
                     mtime = os.path.getmtime(fullname)
                     mtime_dt = datetime.datetime(*time.gmtime(mtime)[:6])
@@ -128,22 +157,6 @@ class UpDown(PatternMatchingEventHandler):
                 # Upload all new files
                 self.upload(fullname, subfolder, name)
 
-            # Then choose which subdirectories to traverse.
-            keep = []
-            for name in dirs:
-                if name.startswith('.'):
-                    print('Skipping dot directory:', name)
-                elif name.startswith('@') or name.endswith('~'):
-                    print('Skipping temporary directory:', name)
-                elif name == '__pycache__':
-                    print('Skipping generated directory:', name)
-                elif True: # self.yesno('Descend into %s' % name, True, option):
-                    print('Keeping directory:', name)
-                    keep.append(name)
-                else:
-                    print('OK, skipping directory:', name)
-            dirs[:] = keep
-
     def getFolderAndFile(self, src_path):
         abs_path = os.path.dirname(src_path)
         subfolder = os.path.relpath(abs_path, self.rootdir)
@@ -157,22 +170,27 @@ class UpDown(PatternMatchingEventHandler):
         print("Moved", src_name, "->", dest_name, "in folder: \"{}\"".format(subfolder))
         self.move(subfolder, src_name, dest_name)
     
+    @check_dropboxignore
     def on_created(self, event):
         subfolder, name = self.getFolderAndFile(event.src_path)
-        print("Created", name, "in folder: \"{}\"".format(subfolder))
-        self.upload(event.src_path, subfolder, name)
+        if not re.match(self.excludes, name):
+            print("Created", name, "in folder: \"{}\"".format(subfolder))
+            self.upload(event.src_path, subfolder, name)
         
+    @check_dropboxignore
     def on_deleted(self, event):
         subfolder, name = self.getFolderAndFile(event.src_path)
         print("Deleted", name, "in folder: \"{}\"".format(subfolder))
         self.delete(subfolder, name)
         
+    @check_dropboxignore
     def on_modified(self, event):
         if not event.is_directory:
             subfolder, name = self.getFolderAndFile(event.src_path)
-            print("Modified", name, "in folder: \"{}\"".format(subfolder))
-            # Syncronization from Local to Dropbox
-            self.upload(event.src_path, subfolder, name, overwrite=True)
+            if not re.match(self.excludes, name):
+                print("Modified", name, "in folder: \"{}\"".format(subfolder))
+                # Syncronization from Local to Dropbox
+                self.upload(event.src_path, subfolder, name, overwrite=True)
 
     def list_folder(self, subfolder, recursive=False):
         """List a folder.
@@ -339,7 +357,7 @@ if __name__ == '__main__':
         print(rootdir, 'is not a folder on your filesystem')
         sys.exit(1)
     # Start updown sync        
-    updown = UpDown(args.token, folder, rootdir, args.verbose)
+    updown = UpDown(args.token, folder, rootdir, verbose=args.verbose)
     
     print("DropboxSync [{}]".format(colored("START", "green")))
     
