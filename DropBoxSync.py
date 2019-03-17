@@ -119,7 +119,7 @@ class UpDown(PatternMatchingEventHandler):
                     os.makedirs(path)
                 self.syncFromDropBox(subfolder=subfolder + "/" + nname)
 
-    def syncFromLocal(self, option="default"):
+    def syncFromLocal(self):
 
         for dn, dirs, files in os.walk(self.rootdir):
             subfolder = dn[len(self.rootdir):].strip(os.path.sep)
@@ -157,10 +157,10 @@ class UpDown(PatternMatchingEventHandler):
                             print(name, 'is already synced [content match]')
                         else:
                             print(name, 'has changed since last sync')
-                            if self.yesno('Refresh %s' % name, False, option):
-                                self.upload(fullname, subfolder, name, overwrite=True)
-                elif self.yesno('Upload %s' % name, True, option):
-                    self.upload(fullname, subfolder, name)
+                            # Overwrite old files
+                            self.upload(fullname, subfolder, name, overwrite=True)
+                # Upload all new files
+                self.upload(fullname, subfolder, name)
 
             # Then choose which subdirectories to traverse.
             keep = []
@@ -177,17 +177,6 @@ class UpDown(PatternMatchingEventHandler):
                 else:
                     print('OK, skipping directory:', name)
             dirs[:] = keep
-            
-    def yesno(self, message, default, option):
-        if option == "default":
-            if self.verbose: print(message + '? [auto]', 'Y' if default else 'N')
-            return default
-        if option == "yes":
-            if self.verbose: print(message + '? [auto] YES')
-            return True
-        if option == "no":
-            if self.verbose: print(message + '? [auto] NO')
-            return False
 
     def list_folder(self, subfolder, recursive=False):
         """List a folder.
@@ -322,29 +311,15 @@ if __name__ == '__main__':
     parser.add_argument('--token', default=TOKEN,
                         help='Access token '
                         '(see https://www.dropbox.com/developers/apps)')
-    parser.add_argument('--yes', '-y', action='store_true',
-                        help='Answer yes to all questions')
-    parser.add_argument('--no', '-n', action='store_true',
-                        help='Answer no to all questions')
-    parser.add_argument('--default', '-d', action='store_true',
-                        help='Take default answer on all questions')
+    parser.add_argument('--fromDropbox', '-db', action='store_true',
+                        help='Syncronize from Dropbox first')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Show all Take default answer on all questions')
     # Parser arguments
     args = parser.parse_args()
-    if sum([bool(b) for b in (args.yes, args.no, args.default)]) > 1:
-        print('At most one of --yes, --no, --default is allowed')
-        sys.exit(2)
     if not args.token:
         print('--token is mandatory')
-        sys.exit(2)  
-            
-    if args.yes:
-        option = "yes"
-    elif args.no:
-        option = "no"
-    else:
-        option = "default"
+        sys.exit(2) 
             
     folder = args.folder
     rootdir = os.path.expanduser(args.rootdir)
