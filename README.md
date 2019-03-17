@@ -1,6 +1,7 @@
 # docker-dropbox-app
-[![](https://images.microbadger.com/badges/image/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own image badge on microbadger.com")
-[![](https://images.microbadger.com/badges/version/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own version badge on microbadger.com") Syncronization dropbox app
+Syncronization dropbox app
+
+[![](https://images.microbadger.com/badges/image/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own image badge on microbadger.com") [![](https://images.microbadger.com/badges/version/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own version badge on microbadger.com") 
 
 How to start up the docker-dropbox app machine:
 1. Create your App in dropbox
@@ -9,7 +10,7 @@ How to start up the docker-dropbox app machine:
 version: '3'
 services:
   dropbox:
-    image: rbonghi/dropbox
+    image: rbonghi/dropbox:latest
     environment:
       - PYTHONUNBUFFERED=1
       - DROPBOX_TOKEN=<WRITE YOUR TOKEN HERE>
@@ -20,3 +21,12 @@ services:
 ```
 docker-compose up
 ```
+ 
+# Make manifest for amd64 and arm
+Use this manifest for multi architect version
+```
+docker manifest create rbonghi/dropbox:latest rbonghi/dropbox:amd64-latest rbonghi/dropbox:arm64-latest
+docker manifest annotate --os linux --arch arm64 --variant armv8 rbonghi/dropbox:latest rbonghi/dropbox:arm64-latest
+docker manifest push rbonghi/dropbox:latest
+```
+
