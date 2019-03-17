@@ -36,6 +36,8 @@ FOLDER = os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else "Do
 ROOTDIR = os.environ['DROPBOX_ROOTDIR'] if "DROPBOX_ROOTDIR" in os.environ else "~/Downloads"
 INTERVAL = int(os.environ['DROPBOX_INTERVAL']) if "DROPBOX_INTERVAL" in os.environ else 60
 
+CHUNK_SIZE = 4 * 1024 * 1024
+
 def do_every(interval, worker_func, iterations = 0):
     """ Repeat an action in thread.
         Follow https://stackoverflow.com/questions/11488877/periodically-execute-function-in-thread-in-real-time-every-n-seconds
@@ -82,8 +84,8 @@ class UpDown(PatternMatchingEventHandler):
             ignore_files = []
         # Upda exclude list
         self.excludes = r'|'.join([fnmatch.translate(x) for x in ignore_files]) or r'$.'
-        #if self.verbose: 
-        print("Update excludes:", ignore_files)
+        if ignore_files:
+            print("Ignore dropbox files:", colored(ignore_files, "red"))
         
     def syncFromDropbox(self, subfolder=""):
         """ Recursive function to download all files from dropbox
@@ -123,12 +125,9 @@ class UpDown(PatternMatchingEventHandler):
             if self.verbose: print('Descending into', subfolder, '...')
 
             # exclude dirs
-            dirs[:] = [os.path.join(subfolder, d) for d in dirs]
             dirs[:] = [d for d in dirs if not re.match(self.excludes, d)]
             # exclude files
-            files = [os.path.join(subfolder, f) for f in files]
             files = [f for f in files if not re.match(self.excludes, f)]
-
             # First do all the files.
             for name in files:
                 fullname = os.path.join(dn, name)
@@ -154,8 +153,10 @@ class UpDown(PatternMatchingEventHandler):
                             print(name, 'has changed since last sync')
                             # Overwrite old files
                             self.upload(fullname, subfolder, name, overwrite=True)
-                # Upload all new files
-                self.upload(fullname, subfolder, name)
+                else:
+                    # Upload all new files
+                    print(name, 'Upload')
+                    self.upload(fullname, subfolder, name)
 
     def getFolderAndFile(self, src_path):
         abs_path = os.path.dirname(src_path)
@@ -279,17 +280,38 @@ class UpDown(PatternMatchingEventHandler):
         if os.path.isdir(fullname):
             res = self.dbx.files_create_folder(path)
         else:
-            with open(fullname, 'rb') as f:
+            f = open(fullname, 'rb')
+            file_size = os.path.getsize(fullname)
+            
+            if file_size <= CHUNK_SIZE:
                 data = f.read()
-            with self.stopwatch('upload %d bytes' % len(data)):
-                try:
-                    res = self.dbx.files_upload(
-                        data, path, mode,
-                        client_modified=datetime.datetime(*time.gmtime(mtime)[:6]),
-                        mute=True)
-                except dropbox.exceptions.ApiError as err:
-                    print('*** API error', err)
-                    return None
+                with self.stopwatch('upload %d bytes' % file_size):
+                    try:
+                        res = self.dbx.files_upload(
+                            data, path, mode,
+                            client_modified=datetime.datetime(*time.gmtime(mtime)[:6]),
+                            mute=True)
+                    except dropbox.exceptions.ApiError as err:
+                        print('*** API error', err)
+                        return None
+            else:
+                upload_session_start_result = self.dbx.files_upload_session_start(f.read(CHUNK_SIZE))
+                cursor = dropbox.files.UploadSessionCursor(session_id=upload_session_start_result.session_id,
+                                                           offset=f.tell())
+                commit = dropbox.files.CommitInfo(path=path)
+                # Upload file
+                with self.stopwatch('upload %d bytes' % file_size):
+                    while f.tell() < file_size:
+                        if ((file_size - f.tell()) <= CHUNK_SIZE):
+                            res = self.dbx.files_upload_session_finish(f.read(CHUNK_SIZE),
+                                                            cursor,
+                                                            commit)
+                        else:
+                            self.dbx.files_upload_session_append(f.read(CHUNK_SIZE),
+                                                            cursor.session_id,
+                                                            cursor.offset)
+                            cursor.offset = f.tell()
+                            
             if self.verbose: print('uploaded as', res.name.encode('utf8'))
         return res
 
@@ -363,10 +385,12 @@ if __name__ == '__main__':
     
     if args.fromDropbox:
         updown.syncFromDropbox()
+        cprint("Ready to sync", "green")
         do_every(args.interval, updown.syncFromDropbox())
     
     if args.fromLocal:
         updown.syncFromLocal()
+        cprint("Ready to sync", "green")
         # Initialize file and folder observer
         observer = Observer()
         observer.schedule(updown, rootdir, recursive=True)
