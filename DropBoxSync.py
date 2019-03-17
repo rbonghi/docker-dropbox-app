@@ -44,34 +44,35 @@ class UpDown(PatternMatchingEventHandler):
             print('Local directory:', rootdir)
         self.dbx = dropbox.Dropbox(token)
         
-    def getFolderAndFile(self, event):
-        abs_path = os.path.dirname(event.src_path)
+    def getFolderAndFile(self, src_path):
+        abs_path = os.path.dirname(src_path)
         subfolder = os.path.relpath(abs_path, self.rootdir)
         subfolder = subfolder if subfolder != "." else "" 
-        name = os.path.basename(event.src_path)
-        # print("directory", event.is_directory, "- subfolder:", subfolder, "- name:", name)
+        name = os.path.basename(src_path)
         return subfolder, name
         
     def on_moved(self, event):
-        print("on_moved", event)
+        subfolder, src_name = self.getFolderAndFile(event.src_path)
+        _, dest_name = self.getFolderAndFile(event.dest_path)
+        print("Moved", src_name, "->", dest_name, "in folder", subfolder)
+        self.move(subfolder, src_name, dest_name)
     
     def on_created(self, event):
-        subfolder, name = self.getFolderAndFile(event)
+        subfolder, name = self.getFolderAndFile(event.src_path)
         print("Created", name, "in folder", subfolder)
         self.upload(event.src_path, subfolder, name)
         
     def on_deleted(self, event):
-        subfolder, name = self.getFolderAndFile(event)
+        subfolder, name = self.getFolderAndFile(event.src_path)
         print("Deleted", name, "in folder", subfolder)
         self.delete(subfolder, name)
         
     def on_modified(self, event):
-        #print("Type event:", type(event))
-        print("Is modified?", event.event_type)
-        subfolder, name = self.getFolderAndFile(event)
-        print("Modified", name, "in folder", subfolder)
-        # Syncronization from Local to Dropbox
-        #self.upload(fullname, subfolder, name, overwrite=True)
+        if not event.is_directory:
+            subfolder, name = self.getFolderAndFile(event.src_path)
+            print("Modified", name, "in folder", subfolder)
+            # Syncronization from Local to Dropbox
+            self.upload(event.src_path, subfolder, name, overwrite=True)
         
     def sync(self, option="default"):
         """ Sync from dropbox to Local and viceversa
@@ -210,6 +211,20 @@ class UpDown(PatternMatchingEventHandler):
                 rv[entry.name] = entry
             return rv
 
+    def move(self, subfolder, src_name, dest_name):
+        """ Move file or folder from dropbox.
+        Return True if is moved from dropbox
+        """
+        src_path = self.normalizePath(subfolder, src_name)
+        dest_path = self.normalizePath(subfolder, dest_name)
+        with self.stopwatch('delete'):
+            try:
+                md = self.dbx.files_move(src_path, dest_path)
+            except dropbox.exceptions.ApiError as err:
+                print('*** API error', err)
+                return False
+        return True
+    
     def delete(self, subfolder, name):
         """ Delete a file from dropbox.
         Return True if is fully delete from dropbox
