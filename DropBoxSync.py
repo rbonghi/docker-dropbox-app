@@ -17,7 +17,10 @@ import unicodedata
 # * https://stackoverflow.com/questions/32923451/how-to-run-an-function-when-anything-changes-in-a-dir-with-python-watchdog
 # * https://stackoverflow.com/questions/46372041/seeing-multiple-events-with-python-watchdog-library-when-folders-are-created
 from watchdog.observers import Observer
-from watchdog.events import LoggingEventHandler
+#from watchdog.events import LoggingEventHandler
+from watchdog.events import PatternMatchingEventHandler
+# Colored terminal - https://pypi.org/project/termcolor/
+from termcolor import colored, cprint
 
 if sys.version.startswith('2'):
     input = raw_input  # noqa: E501,F821; pylint: disable=redefined-builtin,undefined-variable,useless-suppression
@@ -29,9 +32,10 @@ TOKEN = os.environ['DROPBOX_TOKEN'] if "DROPBOX_TOKEN" in os.environ else ""
 FOLDER = os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else "Downloads"
 ROOTDIR = os.environ['DROPBOX_ROOTDIR'] if "DROPBOX_ROOTDIR" in os.environ else "~/Downloads"
 
-class UpDown(LoggingEventHandler):
+class UpDown(PatternMatchingEventHandler):
 
     def __init__(self, token, folder, rootdir, verbose=False):
+        super(UpDown, self).__init__(ignore_patterns=["*.swp"])
         self.folder = folder
         self.rootdir = rootdir
         self.verbose = verbose
@@ -40,15 +44,34 @@ class UpDown(LoggingEventHandler):
             print('Local directory:', rootdir)
         self.dbx = dropbox.Dropbox(token)
         
-    #def dispatch(self, event):
-    #    print("dispatch")
-    #def on_any_event(self, event):
-    #    print("on_any_event")
+    def getFolderAndFile(self, event):
+        abs_path = os.path.dirname(event.src_path)
+        subfolder = os.path.relpath(abs_path, self.rootdir)
+        subfolder = subfolder if subfolder != "." else "" 
+        name = os.path.basename(event.src_path)
+        # print("directory", event.is_directory, "- subfolder:", subfolder, "- name:", name)
+        return subfolder, name
+        
+    def on_moved(self, event):
+        print("on_moved", event)
+    
+    def on_created(self, event):
+        subfolder, name = self.getFolderAndFile(event)
+        print("Created", name, "in folder", subfolder)
+        self.upload(event.src_path, subfolder, name)
+        
+    def on_deleted(self, event):
+        subfolder, name = self.getFolderAndFile(event)
+        print("Deleted", name, "in folder", subfolder)
+        self.delete(subfolder, name)
         
     def on_modified(self, event):
-        print("on_modified")
+        #print("Type event:", type(event))
+        print("Is modified?", event.event_type)
+        subfolder, name = self.getFolderAndFile(event)
+        print("Modified", name, "in folder", subfolder)
         # Syncronization from Local to Dropbox
-        self.syncFromLocal(option="no")
+        #self.upload(fullname, subfolder, name, overwrite=True)
         
     def sync(self, option="default"):
         """ Sync from dropbox to Local and viceversa
@@ -105,6 +128,8 @@ class UpDown(LoggingEventHandler):
             # First do all the files.
             for name in files:
                 fullname = os.path.join(dn, name)
+                print("fullname:", fullname)
+                print("subfolder:", subfolder, "- name:", name)
                 if not isinstance(name, six.text_type):
                     name = name.decode('utf-8')
                 nname = unicodedata.normalize('NFC', name)
@@ -177,7 +202,7 @@ class UpDown(LoggingEventHandler):
             with self.stopwatch('list_folder'):
                 res = self.dbx.files_list_folder(path, recursive=recursive)
         except dropbox.exceptions.ApiError as err:
-            print('Folder listing failed for', path, '-- assumed empty:', err)
+            if self.verbose: print('Folder listing failed for', path, '-- assumed empty:', err)
             return {}
         else:
             rv = {}
@@ -212,6 +237,10 @@ class UpDown(LoggingEventHandler):
         data = res.content
         if self.verbose: print(len(data), 'bytes; md:', md)
         return data
+        
+    def createFolder(self, fullname, subfolder, name):
+        path = self.normalizePath(subfolder, name)
+        self.dbx.files_create_folder(path)
 
     def upload(self, fullname, subfolder, name, overwrite=False):
         """Upload a file.
@@ -222,18 +251,21 @@ class UpDown(LoggingEventHandler):
                 if overwrite
                 else dropbox.files.WriteMode.add)
         mtime = os.path.getmtime(fullname)
-        with open(fullname, 'rb') as f:
-            data = f.read()
-        with self.stopwatch('upload %d bytes' % len(data)):
-            try:
-                res = self.dbx.files_upload(
-                    data, path, mode,
-                    client_modified=datetime.datetime(*time.gmtime(mtime)[:6]),
-                    mute=True)
-            except dropbox.exceptions.ApiError as err:
-                print('*** API error', err)
-                return None
-        if self.verbose: print('uploaded as', res.name.encode('utf8'))
+        if os.path.isdir(fullname):
+            res = self.dbx.files_create_folder(path)
+        else:
+            with open(fullname, 'rb') as f:
+                data = f.read()
+            with self.stopwatch('upload %d bytes' % len(data)):
+                try:
+                    res = self.dbx.files_upload(
+                        data, path, mode,
+                        client_modified=datetime.datetime(*time.gmtime(mtime)[:6]),
+                        mute=True)
+                except dropbox.exceptions.ApiError as err:
+                    print('*** API error', err)
+                    return None
+            if self.verbose: print('uploaded as', res.name.encode('utf8'))
         return res
 
     def normalizePath(self, subfolder, name):
@@ -310,12 +342,14 @@ if __name__ == '__main__':
     # Start updown sync        
     updown = UpDown(args.token, folder, rootdir, args.verbose)
     
-    updown.syncFromDropBox()
+    updown.syncFromLocal()
     
-    sys.exit(1)
     # Initialize file and folder observer
     observer = Observer()
     observer.schedule(updown, rootdir, recursive=True)
+    
+    print("DropboxSync [{}]".format(colored("START", "green")))
+    
     observer.start()
     try:
         while True:
