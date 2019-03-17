@@ -1,13 +1,8 @@
 version: '3'
 services:
   dropbox:
-    container_name: dropbox
+    image: rbonghi/dropbox
     environment:
       - PYTHONUNBUFFERED=1
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: dropbox
     volumes:
-      - ./test:/dropbox
-      - ./:/root
+      - /test:/dropbox
