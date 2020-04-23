@@ -1,2 +1,31 @@
+#IDE
+.vscode/
 
+#Virtual enviroment
+.venv/
+
+# Test folders
 test/
+
+# Compiled python modules.
+*.pyc
+
+# Setuptools distribution folder.
+dist/
+build/
+doc/
+
+# Python egg metadata, regenerated from source files by setuptools.
+/*.egg-info
+
+# log file
+*.log
+
+# Test virtual environment
+venv/
+
+# Unit test / coverage reports
+.tox/
+.cache/
+swapfile
+test.*
