@@ -20,16 +20,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import logging
 import argparse
 import sys
 import os
-
-
-# OAuth2 access token.
-TOKEN = os.environ['DROPBOX_TOKEN'] if "DROPBOX_TOKEN" in os.environ else ""
-FOLDER = os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else "Downloads"
-ROOTDIR = os.environ['DROPBOX_ROOTDIR'] if "DROPBOX_ROOTDIR" in os.environ else "~/Downloads"
-INTERVAL = int(os.environ['DROPBOX_INTERVAL']) if "DROPBOX_INTERVAL" in os.environ else 60
+import time
+# Package imports
+from .updown import UpDown
+# Create logger for jplotlib
+logger = logging.getLogger(__name__)
 
 
 class bcolors:
@@ -42,18 +41,6 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-    @staticmethod
-    def ok():
-        return bcolors.OKGREEN + "OK" + bcolors.ENDC
-
-    @staticmethod
-    def warning():
-        return bcolors.WARNING + "WARN" + bcolors.ENDC
-
-    @staticmethod
-    def fail():
-        return bcolors.FAIL + "ERR" + bcolors.ENDC
-
 
 def main():
     """Main program.
@@ -63,16 +50,18 @@ def main():
     directories, and avoids duplicate uploads by comparing size and
     mtime with the server.
     """
-    #logging.basicConfig(level=logging.INFO,
-    #                    format='%(asctime)s - %(message)s',
-    #                    datefmt='%Y-%m-%d %H:%M:%S')
+    # OAuth2 access token.
+    TOKEN = os.environ['DROPBOX_TOKEN'] if "DROPBOX_TOKEN" in os.environ else ""
+    FOLDER = os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else "Downloads"
+    ROOTDIR = os.environ['DROPBOX_ROOTDIR'] if "DROPBOX_ROOTDIR" in os.environ else "~/Downloads"
+    INTERVAL = int(os.environ['DROPBOX_INTERVAL']) if "DROPBOX_INTERVAL" in os.environ else 60
 
     parser = argparse.ArgumentParser(description='Sync ~/dropbox to Dropbox')
     parser.add_argument('folder', nargs='?', default=FOLDER,
                         help='Folder name in your Dropbox')
     parser.add_argument('rootdir', nargs='?', default=ROOTDIR,
                         help='Local directory to upload')
-    parser.add_argument('--token', default=TOKEN,
+    parser.add_argument('--token', default=TOKEN, required=True,
                         help='Access token '
                         '(see https://www.dropbox.com/developers/apps)')
     parser.add_argument('--interval', default=INTERVAL,
@@ -83,51 +72,41 @@ def main():
                         help='Direction to synchronize Dropbox')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Show all Take default answer on all questions')
+
     # Parser arguments
     args = parser.parse_args()
-    if sum([bool(b) for b in (args.fromDropbox, args.fromLocal)]) != 1:
-        print('Select one of --fromDropbox or --fromLocal')
-        sys.exit(2)
-    if not args.token:
-        print('--token is mandatory')
-        sys.exit(2) 
+
+    logging.basicConfig(level=logging.DEBUG, format='%(name)s - %(levelname)s - %(message)s')
+
+
+    # Check arguments
+    #if sum([bool(b) for b in (args.fromDropbox, args.fromLocal)]) != 1:
+    #    print('Select one of --fromDropbox or --fromLocal')
+    #    sys.exit(2)
             
     folder = args.folder
     rootdir = os.path.expanduser(args.rootdir)
+    
     if not os.path.exists(rootdir):
-        print(rootdir, 'does not exist on your filesystem')
+        print(f"{bcolors.FAIL}{rootdir} does not exist on your filesystem{bcolors.ENDC}")
         sys.exit(1)
     elif not os.path.isdir(rootdir):
         print(rootdir, 'is not a folder on your filesystem')
         sys.exit(1)
-    # Start updown sync        
-    ###############updown = UpDown(args.token, folder, rootdir, verbose=args.verbose)
-    
-    print(f"DropboxSync [{bcolors.OKGREEN}START{bcolors.ENDC}]")
-    
-    if args.fromDropbox:
-        updown.syncFromDropbox()
-        print(f"{bcolors.OKGREEN}Ready to sync{bcolors.ENDC}")
-        ###############do_every(args.interval, updown.syncFromDropbox())
-    
-    if args.fromLocal:
-        if not os.listdir(rootdir):
-            cprint("Directory is empty, start first download", "yellow")
-            updown.syncFromDropbox()
-        else:
-            updown.syncFromLocal()
-        cprint("Ready to sync", "green")
-        # Initialize file and folder observer
-        observer = Observer()
-        observer.schedule(updown, rootdir, recursive=True)
-        observer.start()
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            observer.stop()
-        observer.join()
 
+    # Start updown sync
+    updown = UpDown(args.token, folder, rootdir, interval=args.interval)
+    # Run observer
+    logger.info("Server started")
+    updown.start()
+    # Run loop
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    # Stop server
+    updown.stop()
 
 if __name__ == '__main__':
     main()

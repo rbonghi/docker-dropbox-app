@@ -51,7 +51,7 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Load version package
-with open(os.path.join(here, "dropbox-sync", "__init__.py")) as fp:
+with open(os.path.join(here, "dbsync", "__init__.py")) as fp:
     VERSION = (
         re.compile(r""".*__version__ = ["'](.*?)['"]""", re.S).match(fp.read()).group(1)
     )
@@ -61,7 +61,7 @@ version = VERSION
 
 # Configuration setup module
 setup(
-    name="dropbox-sync",
+    name="dbsync",
     version=version,
     author="Raffaello Bonghi",
     author_email="raffaello@rnext.it",
@@ -97,6 +97,8 @@ setup(
                  "Programming Language :: Python :: 3.8",
                  "Operating System :: POSIX :: Linux",
                  ],
+    # Install requirements
+    install_requires=requirements,
     # Requisites
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
     python_requires='>=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
@@ -104,7 +106,7 @@ setup(
     # Zip safe configuration
     # https://setuptools.readthedocs.io/en/latest/setuptools.html#setting-the-zip-safe-flag
     zip_safe=False,
-    # The following provide a command called `jtop`
-    entry_points={'console_scripts': ['db_sync=DBsync.__main__:main']},
+    # The following provide a command called `dbsync`
+    entry_points={'console_scripts': ['dbsync=dbsync.__main__:main']},
 )
 # EOF
