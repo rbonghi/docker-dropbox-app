@@ -29,5 +29,6 @@ include LICENSE
 include requirements.txt
 
 # Docker
+include .dockerignore
 include Dockerfile
 include docker-compose.yml
