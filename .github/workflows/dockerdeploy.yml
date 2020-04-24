@@ -1,0 +1,30 @@
+name: Docker registry
+
+on:
+  push:
+    # Publish `master` as Docker `latest` image.
+    branches:
+      - master
+
+jobs:
+  github:
+    runs-on: ubuntu-latest    
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Login to github registry
+        uses: actions-hub/docker/login@master
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_REGISTRY_URL: docker.pkg.github.com
+
+      - name: Build :latest
+        if: success()
+        run: docker build -t docker.pkg.github.com/${{ github.repository }}/app:latest .
+        
+      - name: Push to docker hub :latest
+        if: success()
+        uses: actions-hub/docker@master
+        with:
+          args: push docker.pkg.github.com/${{ github.repository }}:latest
