@@ -20,6 +20,19 @@
 # SOFTWARE.
 
 FROM python:3-alpine
+# Build-time metadata as defined at http://label-schema.org
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION
+LABEL org.label-schema.build-date=$BUILD_DATE \
+        org.label-schema.name="docker-dropbox-app" \
+        org.label-schema.description="Automatic sync folder by a dropbox app" \
+        org.label-schema.url="https://rnext.it/" \
+        org.label-schema.vcs-ref=$VCS_REF \
+        org.label-schema.vcs-url="https://github.com/rbonghi/docker-dropbox-app" \
+        org.label-schema.vendor="rbonghi" \
+        org.label-schema.version=$VERSION \
+        org.label-schema.schema-version="1.0"
 
 # Install requirements
 COPY requirements.txt /root

@@ -61,7 +61,7 @@ setup(
     version=version,
     author="Raffaello Bonghi",
     author_email="raffaello@rnext.it",
-    description="Automatic sync folder from dropbox token app",
+    description="Automatic sync folder by a dropbox app",
     license='MIT',
     long_description=long_description,
     long_description_content_type="text/markdown",
