@@ -46,8 +46,10 @@ docker-compose up
 
 # Configuration
 You have two option to run the dropboxsync:
-* **--fromLocal** *[default]* For each update (create, delete, modification, move) the folder in your dropbox account will be updated
-* **--fromDropbox** Every 60seconds the dropbox folder will be syncronized from your dropbox account
+* **--inverval** [_Default:_ 10s] Interval refresh folder from Dropbox
+* **--fromLocal** Will be overwriten from your PC follder to Dropbox
+* **--fromDropbox** Will be overwriten from Dropbox to your PC folder
+* **--verbose** Show all debug messages
 
 To select this option you can run the docker machine adding:
 ```
@@ -59,7 +61,7 @@ version: '3'
 services:
   dropbox:
     image: rbonghi/dropbox:latest
-    command: ["--fromDropbox"]
+    command: ["--fromDropbox", "-i", "120"]
     environment:
       - PYTHONUNBUFFERED=1
       - DROPBOX_TOKEN=<WRITE YOUR TOKEN HERE>
