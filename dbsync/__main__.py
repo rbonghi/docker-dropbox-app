@@ -52,14 +52,14 @@ def main():
     """
     # OAuth2 access token.
     TOKEN = os.environ['DROPBOX_TOKEN'] if "DROPBOX_TOKEN" in os.environ else ""
-    FOLDER = os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else "Downloads"
+    FOLDER = os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else ""
     ROOTDIR = os.environ['DROPBOX_ROOTDIR'] if "DROPBOX_ROOTDIR" in os.environ else "~/Downloads"
-    INTERVAL = int(os.environ['DROPBOX_INTERVAL']) if "DROPBOX_INTERVAL" in os.environ else 60
+    INTERVAL = int(os.environ['DROPBOX_INTERVAL']) if "DROPBOX_INTERVAL" in os.environ else 10
 
     parser = argparse.ArgumentParser(description='Sync ~/dropbox to Dropbox')
-    parser.add_argument('folder', nargs='?', default=FOLDER,
+    parser.add_argument('--folder', default=FOLDER,
                         help='Folder name in your Dropbox')
-    parser.add_argument('rootdir', nargs='?', default=ROOTDIR,
+    parser.add_argument('--rootdir', default=ROOTDIR,
                         help='Local directory to upload')
     parser.add_argument('--token', default=TOKEN, required=True,
                         help='Access token '
@@ -72,18 +72,17 @@ def main():
                         help='Direction to synchronize Dropbox')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Show all Take default answer on all questions')
-
     # Parser arguments
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG, format='%(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
 
 
     # Check arguments
     #if sum([bool(b) for b in (args.fromDropbox, args.fromLocal)]) != 1:
     #    print('Select one of --fromDropbox or --fromLocal')
     #    sys.exit(2)
-            
+
     folder = args.folder
     rootdir = os.path.expanduser(args.rootdir)
     
@@ -91,7 +90,7 @@ def main():
         print(f"{bcolors.FAIL}{rootdir} does not exist on your filesystem{bcolors.ENDC}")
         sys.exit(1)
     elif not os.path.isdir(rootdir):
-        print(rootdir, 'is not a folder on your filesystem')
+        print(f"{bcolors.FAIL}{rootdir} is not a folder on your filesystem{bcolors.ENDC}")
         sys.exit(1)
 
     # Start updown sync
@@ -104,7 +103,7 @@ def main():
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        pass
+        logger.debug("Keyboard interrupt")
     # Stop server
     updown.stop()
 

@@ -29,6 +29,8 @@ from datetime import datetime
 import re
 import unicodedata
 from threading import Thread, Event
+import pathlib
+import shutil
 #import six
 # Dropbox library
 import dropbox
@@ -45,14 +47,18 @@ from watchdog.events import PatternMatchingEventHandler
 logger = logging.getLogger(__name__)
 # Chunk size dimension
 CHUNK_SIZE = 4 * 1024 * 1024
-
+# Conflict files
+# TODO: Improve with _CONFLICT_DATE_ #(\d+/\d+/\d+)
+CONFLICT = r'_CONFLICT_'
+# Ingnored pattern
+IGNORE_PATTERNS = ["*.swp", "*.goutputstream*"]
 
 def dropboxignore(func):
     """ Reload scripts functions """
     @wraps(func)
     def wrapped(self, event):
         # Check before create if match with dropboxignore
-        if event.src_path == os.path.join(self.rootdir, self.dropboxignore):
+        if event.src_path == os.path.join(self.folder, self.dropboxignore):
             self.excludes = self.loadDropboxIgnore()
         return func(self, event)
     return wrapped
@@ -60,11 +66,11 @@ def dropboxignore(func):
 
 class UpDown(Thread, PatternMatchingEventHandler):
 
-    def __init__(self, token, folder, rootdir, dropboxignore=".dropboxignore", interval=0.5):
+    def __init__(self, token, dbfolder, folder, dropboxignore=".dropboxignore", interval=0.5):
         Thread.__init__(self)
-        PatternMatchingEventHandler.__init__(self, ignore_patterns=["*.swp"])
+        PatternMatchingEventHandler.__init__(self, ignore_patterns=IGNORE_PATTERNS)
+        self.db_folder = dbfolder
         self.folder = folder
-        self.rootdir = rootdir
         self.dropboxignore = dropboxignore
         self.interval = interval
         # Load dropbox library
@@ -72,11 +78,16 @@ class UpDown(Thread, PatternMatchingEventHandler):
         # Load DropboxIgnore list
         self.excludes = self.loadDropboxIgnore()
         # Status initialization
-        logger.debug(f"Dropbox folder name: {folder}")
-        logger.debug(f"Local directory: {rootdir}")
+        logger.debug(f"Dropbox folder name: {dbfolder}")
+        logger.debug(f"Local directory: {folder}")
 
     def run(self):
         while not self.stopped.wait(self.interval):
+            logger.debug("Dropbox remote sync")
+            # Syncronize from Dropbox first
+            self.syncFromDropbox(overwrite=True)
+            # List of all files
+            self.syncFromHost(overwrite=False, remove=True)
             # Syncronize from Dropbox first
             self.syncFromDropbox(overwrite=True)
 
@@ -87,7 +98,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
         self.syncFromHost(overwrite=False)
         # Load the observer
         self.observer = Observer()
-        self.observer.schedule(self, self.rootdir, recursive=True)
+        self.observer.schedule(self, self.folder, recursive=True)
         # Initialize stop event
         self.stopped = Event()
         super().start()
@@ -110,6 +121,8 @@ class UpDown(Thread, PatternMatchingEventHandler):
     @dropboxignore
     def on_deleted(self, event):
         subfolder, name = self.getFolderAndFile(event.src_path)
+        if re.search(CONFLICT,name):
+            return
         logger.debug(f"Deleted {name} in folder: \"{subfolder}\"")
         self.delete(subfolder, name)
 
@@ -122,32 +135,65 @@ class UpDown(Thread, PatternMatchingEventHandler):
                 # Syncronization from Local to Dropbox
                 self.upload(event.src_path, subfolder, name, overwrite=True)
 
-    def syncFromHost(self, overwrite=False):
-        for dn, dirs, files in os.walk(self.rootdir):
+    @dropboxignore
+    def on_moved(self, event):
+        if re.search(CONFLICT, event.dest_path):
+            return
+        if any([fnmatch.fnmatch(event.src_path, pattern) for pattern in IGNORE_PATTERNS]):
+            subfolder, name = self.getFolderAndFile(event.dest_path)
+            logger.debug(f"Modified {event.dest_path}")
+            # Syncronization from Local to Dropbox
+            self.upload(event.dest_path, subfolder, name, overwrite=True)
+            return
+        src_subfolder = os.path.relpath(event.src_path, self.folder)
+        dest_subfolder = os.path.relpath(event.dest_path, self.folder)
+        logger.debug(f"Move from {src_subfolder} to {dest_subfolder}")
+        self.move(src_subfolder, dest_subfolder)
+
+
+    def syncFromHost(self, overwrite=False, remove=False):
+        for dn, dirs, files in os.walk(self.folder):
             # Get local folder
-            subfolder = dn[len(self.rootdir):].strip(os.path.sep)
+            subfolder = dn[len(self.folder):].strip(os.path.sep)
             # Get list from dropbox folder
-            listing = self.list_folder(subfolder, onlyFiles=True)
+            listing = self.list_folder(subfolder)
+            list_files = {}
+            list_folders = {}
+            for k, v in listing.items():
+                if isinstance(v, dropbox.files.FileMetadata):
+                    list_files[k] = v
+                else:
+                    list_folders[k] = v
             logger.debug(f"In folder \"{subfolder}\" ...")
             # exclude dirs
             dirs[:] = [d for d in dirs if not re.match(self.excludes, d)]
             # exclude files
             files = [f for f in files if not re.match(self.excludes, f)]
             # Upload only PC files
-            for name in list(set(files) - set(listing)):
+            for name in list(set(files) - set(list_files)):
                 fullname = os.path.join(dn, name)
                 #if not isinstance(name, six.text_type):
                 #    name = name.decode('utf-8')
                 #nname = unicodedata.normalize('NFC', name)
-                # TODO: Improve with _CONFLICT_DATE_ #(\d+/\d+/\d+)
-                if re.search(r'_CONFLICT_',fullname):
+                if re.search(CONFLICT,fullname):
                     continue
-                # Upload file
-                self.upload(fullname, subfolder, name, overwrite=overwrite)
+                # Remove file not in list
+                if remove:
+                    logger.info(f"Remove file {fullname}")
+                    os.remove(fullname)
+                else:
+                    # Upload file
+                    self.upload(fullname, subfolder, name, overwrite=overwrite)
+            # Remove folders
+            if remove:
+                for name in list(set(dirs) - set(list_folders)):
+                    fullname = os.path.join(dn, name)
+                    logger.info(f"Remove folder {fullname}")
+                    shutil.rmtree(fullname)
 
     def syncFromDropbox(self, subfolder="", overwrite=False):
         for nname, md in self.list_folder(subfolder).items():
-            path = self.rootdir + subfolder + "/" + nname
+            path = self.folder + subfolder + "/" + nname
             # Check if is a file
             if isinstance(md, dropbox.files.FileMetadata):
                 res = self.download(subfolder, nname)
@@ -157,9 +203,12 @@ class UpDown(Thread, PatternMatchingEventHandler):
                     mtime_dt = datetime(*time.gmtime(mtime)[:6])
                     size = os.path.getsize(path)
                     if(mtime_dt == md.client_modified and size == md.size):
-                        logger.info(f"{nname} is already synced [stats match]")
+                        logger.debug(f"{nname} is already synced [stats match]")
                     else:
                         if not overwrite:
+                            # Upload new version
+                            self.upload(path, subfolder, os.path.basename(path))
+                            # Store conflict data
                             basename = os.path.basename(path)
                             name_file = basename.split(".")[0]
                             date = f"{mtime_dt}".replace(" ", "_").replace(":", "")
@@ -178,7 +227,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
 
     def getFolderAndFile(self, src_path):
         abs_path = os.path.dirname(src_path)
-        subfolder = os.path.relpath(abs_path, self.rootdir)
+        subfolder = os.path.relpath(abs_path, self.folder)
         subfolder = subfolder if subfolder != "." else "" 
         name = os.path.basename(src_path)
         return subfolder, name
@@ -187,7 +236,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
         """ Load Dropbox Ignore file and exlude this files from the list
         """
         excludes = r'$.'
-        path = f"{self.rootdir}/{self.dropboxignore}"
+        path = f"{self.folder}/{self.dropboxignore}"
         ignore_files = []
         if os.path.exists(path):
             with open(path, 'r') as f:
@@ -205,7 +254,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
             FileMetadata | FolderMetadata entries.
         """
         rv = {}
-        path = f"{self.folder}/{subfolder.replace(os.path.sep, '/')}".rstrip('/')
+        path = f"/{self.db_folder}/{subfolder.replace(os.path.sep, '/')}".rstrip('/')
         try:
             with self.stopwatch('list_folder'):
                 res = self.dbx.files_list_folder(path, recursive=recursive)
@@ -215,11 +264,15 @@ class UpDown(Thread, PatternMatchingEventHandler):
         # Load list
         for entry in res.entries:
             # List only Files otherwise list all
+            if recursive:
+                name = entry.path_display.lstrip("/")
+            else:
+                name = entry.name
             if onlyFiles:
                 if isinstance(entry, dropbox.files.FileMetadata):
-                    rv[entry.name] = entry
+                    rv[name] = entry
             else:
-                rv[entry.name] = entry
+                rv[name] = entry
         return rv
 
     def storefile(self, res, filename, timedb):
@@ -241,6 +294,9 @@ class UpDown(Thread, PatternMatchingEventHandler):
         with self.stopwatch('download'):
             try:
                 md, res = self.dbx.files_download(path)
+            except dropbox.exceptions.ApiError as err:
+                logger.error(f"API error {err.user_message_text}")
+                return None
             except dropbox.exceptions.HttpError as err:
                 logger.error(f"HTTP error {err}")
                 return None
@@ -251,7 +307,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
     def normalizePath(self, subfolder, name):
         """ Normalize folder for Dropbox syncronization.
         """
-        path = f"/{self.folder}/{subfolder.replace(os.path.sep, '/')}/{name}"
+        path = f"/{self.db_folder}/{subfolder.replace(os.path.sep, '/')}/{name}"
         while '//' in path:
             path = path.replace('//', '/')
         return path
@@ -269,7 +325,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
             try:
                 res = self.dbx.files_create_folder(path)
             except dropbox.exceptions.ApiError as err:
-                logger.error(f"API ERROR {err}")
+                logger.error(f"API ERROR {err.user_message_text}")
                 return None
         else:
             f = open(fullname, 'rb')
@@ -283,7 +339,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
                                                     client_modified=datetime(*time.gmtime(mtime)[:6]),
                                                     mute=True)
                     except dropbox.exceptions.ApiError as err:
-                        logger.error(f"API ERROR {err}")
+                        logger.error(f"API ERROR {err.user_message_text}")
                         return None
             else:
                 upload_session_start_result = self.dbx.files_upload_session_start(f.read(CHUNK_SIZE))
@@ -309,6 +365,22 @@ class UpDown(Thread, PatternMatchingEventHandler):
         with self.stopwatch('delete'):
             try:
                 self.dbx.files_delete(path)
+            except dropbox.exceptions.ApiError as err:
+                logger.error(f"API error {err}")
+                return False
+        return True
+    
+    def move(self, from_path, to_path, overwrite=False):
+        """ Move a file or folder from dropbox.
+            Return True if is fully moved from dropbox
+        """
+        while '//' in from_path:
+            from_path = from_path.replace('//', '/')
+        while '//' in to_path:
+            to_path = to_path.replace('//', '/')
+        with self.stopwatch('move'):
+            try:
+                self.dbx.files_move("/" + from_path, "/" + to_path, allow_shared_folder=False, autorename=overwrite, allow_ownership_transfer=False)
             except dropbox.exceptions.ApiError as err:
                 logger.error(f"API error {err}")
                 return False
