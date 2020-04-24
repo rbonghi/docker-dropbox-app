@@ -1,8 +1,7 @@
 # docker-dropbox-app
 :whale: Docker syncronization container for Dropbox using a token app 
 
-- AMD64 [![](https://images.microbadger.com/badges/version/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own image badge on microbadger.com") 
-- ARM64 [![](https://images.microbadger.com/badges/version/rbonghi/dropbox:arm64-latest.svg)](https://microbadger.com/images/rbonghi/dropbox:arm64-latest "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/rbonghi/dropbox:arm64-latest.svg)](https://microbadger.com/images/rbonghi/dropbox:arm64-latest "Get your own image badge on microbadger.com") 
+[![](https://images.microbadger.com/badges/version/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own image badge on microbadger.com") 
 
 Docker hub repos: https://hub.docker.com/r/rbonghi/dropbox
 
