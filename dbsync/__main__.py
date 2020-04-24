@@ -78,7 +78,7 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
     # Check folders
     folder = args.folder
-    rootdir = os.path.expanduser(args.rootdir)    
+    rootdir = os.path.expanduser(args.rootdir)
     if not os.path.exists(rootdir):
         print(f"{bcolors.FAIL}{rootdir} does not exist on your filesystem{bcolors.ENDC}")
         sys.exit(1)
@@ -105,6 +105,7 @@ def main():
         logger.debug("Keyboard interrupt")
     # Stop server
     updown.stop()
+
 
 if __name__ == '__main__':
     main()

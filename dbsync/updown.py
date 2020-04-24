@@ -27,11 +27,11 @@ import contextlib
 import time
 from datetime import datetime
 import re
-import unicodedata
 from threading import Thread, Event
-import pathlib
 import shutil
-#import six
+# Now not used
+# import unicodedata
+# import six
 # Dropbox library
 import dropbox
 # Functions and decorators
@@ -52,6 +52,7 @@ CHUNK_SIZE = 4 * 1024 * 1024
 CONFLICT = r'_CONFLICT_'
 # Ingnored pattern
 IGNORE_PATTERNS = ["*.swp", "*.goutputstream*"]
+
 
 def dropboxignore(func):
     """ Reload scripts functions """
@@ -126,7 +127,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
     @dropboxignore
     def on_deleted(self, event):
         subfolder, name = self.getFolderAndFile(event.src_path)
-        if re.search(CONFLICT,name):
+        if re.search(CONFLICT, name):
             return
         logger.debug(f"Deleted {name} in folder: \"{subfolder}\"")
         self.delete(subfolder, name)
@@ -155,7 +156,6 @@ class UpDown(Thread, PatternMatchingEventHandler):
         logger.debug(f"Move from {src_subfolder} to {dest_subfolder}")
         self.move(src_subfolder, dest_subfolder)
 
-
     def syncFromHost(self, overwrite=False, remove=False):
         for dn, dirs, files in os.walk(self.folder):
             # Get local folder
@@ -177,10 +177,11 @@ class UpDown(Thread, PatternMatchingEventHandler):
             # Upload only PC files
             for name in list(set(files) - set(list_files)):
                 fullname = os.path.join(dn, name)
-                #if not isinstance(name, six.text_type):
+                # TODO: Check if is required
+                # if not isinstance(name, six.text_type):
                 #    name = name.decode('utf-8')
-                #nname = unicodedata.normalize('NFC', name)
-                if re.search(CONFLICT,fullname):
+                # nname = unicodedata.normalize('NFC', name)
+                if re.search(CONFLICT, fullname):
                     continue
                 # Remove file not in list
                 if remove:
@@ -233,7 +234,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
     def getFolderAndFile(self, src_path):
         abs_path = os.path.dirname(src_path)
         subfolder = os.path.relpath(abs_path, self.folder)
-        subfolder = subfolder if subfolder != "." else "" 
+        subfolder = subfolder if subfolder != "." else ""
         name = os.path.basename(src_path)
         return subfolder, name
 
@@ -251,7 +252,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
             excludes = r'|'.join([fnmatch.translate(x) for x in ignore_files]) or r'$.'
             logger.warning(f"Ignore dropbox files: {ignore_files}")
         return excludes
-    
+
     def list_folder(self, subfolder, recursive=False, onlyFiles=False):
         """ List a folder.
 
@@ -335,7 +336,6 @@ class UpDown(Thread, PatternMatchingEventHandler):
         else:
             f = open(fullname, 'rb')
             file_size = os.path.getsize(fullname)
-            
             if file_size <= CHUNK_SIZE:
                 data = f.read()
                 with self.stopwatch(f"upload {file_size} bytes"):
@@ -358,7 +358,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
                         else:
                             self.dbx.files_upload_session_append(f.read(CHUNK_SIZE), cursor.session_id, cursor.offset)
                             cursor.offset = f.tell()
-            # Info data uploaded    
+            # Info data uploaded
             logger.debug(f"uploaded as {res.name.encode('utf8')}")
         return res
 
@@ -374,7 +374,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
                 logger.error(f"API error {err}")
                 return False
         return True
-    
+
     def move(self, from_path, to_path, overwrite=False):
         """ Move a file or folder from dropbox.
             Return True if is fully moved from dropbox

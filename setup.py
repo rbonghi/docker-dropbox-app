@@ -29,11 +29,7 @@ from setuptools import setup, find_packages
 # Python 3 only projects can skip this import
 from io import open
 # Launch command
-import subprocess as sp
-import shlex
 import os
-from shutil import copyfile
-import sys
 import re
 
 
