@@ -10,9 +10,10 @@ ENV DROPBOX_ROOTDIR="/dropbox"
 
 VOLUME ["/dropbox"]
 
-COPY DropBoxSync.py /root
+COPY . /root
 
 WORKDIR "/root"
 
-ENTRYPOINT ["python", "DropBoxSync.py" ]
-CMD ["--fromLocal"]
+RUN python setup.py install
+
+ENTRYPOINT ["dbsync" ]

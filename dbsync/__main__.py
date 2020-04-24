@@ -61,7 +61,7 @@ def main():
                         help='Folder name in your Dropbox')
     parser.add_argument('--rootdir', default=ROOTDIR,
                         help='Local directory to upload')
-    parser.add_argument('--token', default=TOKEN, required=True,
+    parser.add_argument('--token', default=TOKEN,
                         help='Access token '
                         '(see https://www.dropbox.com/developers/apps)')
     parser.add_argument('--interval', default=INTERVAL,
@@ -76,6 +76,10 @@ def main():
     args = parser.parse_args()
     # Initialize loggger
     logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
+    # Check token
+    if not args.token:
+        print('--token cannot be empty')
+        sys.exit(2) 
     # Check folders
     folder = args.folder
     rootdir = os.path.expanduser(args.rootdir)
