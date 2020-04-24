@@ -19,38 +19,34 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+#IDE
+.vscode/
 
-[tox]
-envlist = py{3.4,3.5,3.6,3.7,3.8}
-skip_missing_interpreters = true
+#Virtual enviroment
+.venv/
 
-[testenv]
-basepython =
-    py3.4: python3.4
-    py3.5: python3.5
-    py3.6: python3.6
-    py3.7: python3.7
-    py3.8: python3.8
-deps =
-    check-manifest
-    flake8
-    pytest
-commands =
-    # List of enviroments variables
-    # https://tox.readthedocs.io/en/latest/config.html#substitutions-for-virtualenv-related-sections
-    check-manifest --ignore tox.ini,tests*
-    python setup.py check -m -s
-    flake8 .
-    # py.test tests
-[flake8]
-max-line-length = 160
-exclude = 
-    .venv,
-    .git,
-    .tox,
-    *.egg,
-    build,
-    data
-select = E,W,F
-[pytest]
-addopts = -p no:warnings
+# Test folders
+test/
+
+# Compiled python modules.
+*.pyc
+
+# Setuptools distribution folder.
+dist/
+build/
+doc/
+
+# Python egg metadata, regenerated from source files by setuptools.
+/*.egg-info
+
+# log file
+*.log
+
+# Test virtual environment
+venv/
+
+# Unit test / coverage reports
+.tox/
+.cache/
+swapfile
+test.*

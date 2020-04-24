@@ -57,14 +57,14 @@ def main():
     INTERVAL = int(os.environ['DROPBOX_INTERVAL']) if "DROPBOX_INTERVAL" in os.environ else 10
 
     parser = argparse.ArgumentParser(description='Sync ~/dropbox to Dropbox')
-    parser.add_argument('--folder', default=FOLDER,
-                        help='Folder name in your Dropbox')
     parser.add_argument('--rootdir', default=ROOTDIR,
                         help='Local directory to upload')
-    parser.add_argument('--token', default=TOKEN,
+    parser.add_argument('--folder', '-f', default=FOLDER,
+                        help='Folder name in your Dropbox')
+    parser.add_argument('--token', '-t', default=TOKEN,
                         help='Access token '
                         '(see https://www.dropbox.com/developers/apps)')
-    parser.add_argument('--interval', default=INTERVAL,
+    parser.add_argument('--interval', '-i', default=INTERVAL,
                         help='Interval to sync from dropbox')
     parser.add_argument('--fromDropbox', action='store_true',
                         help='Direction to synchronize Dropbox')
@@ -75,11 +75,12 @@ def main():
     # Parser arguments
     args = parser.parse_args()
     # Initialize loggger
-    logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
+    level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=level, format='%(name)s - %(levelname)s - %(message)s')
     # Check token
     if not args.token:
-        print('--token cannot be empty')
-        sys.exit(2) 
+        print(f"{bcolors.FAIL}token cannot be empty{bcolors.ENDC}")
+        sys.exit(2)
     # Check folders
     folder = args.folder
     rootdir = os.path.expanduser(args.rootdir)
