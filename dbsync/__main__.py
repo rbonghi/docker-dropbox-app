@@ -74,27 +74,26 @@ def main():
                         help='Show all Take default answer on all questions')
     # Parser arguments
     args = parser.parse_args()
-
+    # Initialize loggger
     logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
-
-
-    # Check arguments
-    #if sum([bool(b) for b in (args.fromDropbox, args.fromLocal)]) != 1:
-    #    print('Select one of --fromDropbox or --fromLocal')
-    #    sys.exit(2)
-
+    # Check folders
     folder = args.folder
-    rootdir = os.path.expanduser(args.rootdir)
-    
+    rootdir = os.path.expanduser(args.rootdir)    
     if not os.path.exists(rootdir):
         print(f"{bcolors.FAIL}{rootdir} does not exist on your filesystem{bcolors.ENDC}")
         sys.exit(1)
     elif not os.path.isdir(rootdir):
         print(f"{bcolors.FAIL}{rootdir} is not a folder on your filesystem{bcolors.ENDC}")
         sys.exit(1)
-
+    # Configure type of overwrite
+    if args.fromDropbox:
+        overwrite = "dropbox"
+    elif args.fromLocal:
+        overwrite = "host"
+    else:
+        overwrite = ""
     # Start updown sync
-    updown = UpDown(args.token, folder, rootdir, interval=args.interval)
+    updown = UpDown(args.token, folder, rootdir, interval=args.interval, overwrite=overwrite)
     # Run observer
     logger.info("Server started")
     updown.start()

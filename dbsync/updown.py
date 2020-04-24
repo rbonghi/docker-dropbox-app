@@ -66,13 +66,14 @@ def dropboxignore(func):
 
 class UpDown(Thread, PatternMatchingEventHandler):
 
-    def __init__(self, token, dbfolder, folder, dropboxignore=".dropboxignore", interval=0.5):
+    def __init__(self, token, dbfolder, folder, dropboxignore=".dropboxignore", interval=0.5, overwrite=""):
         Thread.__init__(self)
         PatternMatchingEventHandler.__init__(self, ignore_patterns=IGNORE_PATTERNS)
         self.db_folder = dbfolder
         self.folder = folder
         self.dropboxignore = dropboxignore
         self.interval = interval
+        self.overwrite = overwrite
         # Load dropbox library
         self.dbx = dropbox.Dropbox(token)
         # Load DropboxIgnore list
@@ -92,10 +93,14 @@ class UpDown(Thread, PatternMatchingEventHandler):
             self.syncFromDropbox(overwrite=True)
 
     def start(self):
+        overwrite_db = (self.overwrite == "dropbox")
+        overwrite_host = (self.overwrite == "host")
+        logger.info(f"Overwrite from Dropbox {overwrite_db}")
+        logger.info(f"Overwrite from Host {overwrite_host}")
         # Syncronize from Dropbox first
-        self.syncFromDropbox(overwrite=False)
+        self.syncFromDropbox(overwrite=overwrite_db)
         # After syncronize from PC
-        self.syncFromHost(overwrite=False)
+        self.syncFromHost(overwrite=overwrite_host)
         # Load the observer
         self.observer = Observer()
         self.observer.schedule(self, self.folder, recursive=True)
