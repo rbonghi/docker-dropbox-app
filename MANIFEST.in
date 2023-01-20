@@ -28,6 +28,9 @@ include LICENSE
 # Requirements
 include requirements.txt
 
+# Include starting script
+include *.sh
+
 # Docker
 include .dockerignore
 include Dockerfile
