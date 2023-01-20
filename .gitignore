@@ -1,5 +1,7 @@
 #IDE
 .vscode/
+*.iml
+*.idea
 
 #Virtual enviroment
 .venv/

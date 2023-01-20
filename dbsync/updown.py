@@ -20,29 +20,32 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import contextlib
+import fnmatch
 import logging
 import os
-import fnmatch
-import contextlib
+import re
+import shutil
 import time
 from datetime import datetime
-import re
+# Functions and decorators
+from functools import wraps
 from threading import Thread, Event
-import shutil
+
 # Now not used
 # import unicodedata
 # import six
 # Dropbox library
 import dropbox
-# Functions and decorators
-from functools import wraps
+from dropbox import DropboxOAuth2FlowNoRedirect
+# Watchdog file events
+from watchdog.events import PatternMatchingEventHandler
 # How it is work watchdog
 # * https://pythonhosted.org/watchdog/quickstart.html#a-simple-example
 # * https://stackoverflow.com/questions/32923451/how-to-run-an-function-when-anything-changes-in-a-dir-with-python-watchdog
 # * https://stackoverflow.com/questions/46372041/seeing-multiple-events-with-python-watchdog-library-when-folders-are-created
 from watchdog.observers import Observer
-# Watchdog file events
-from watchdog.events import PatternMatchingEventHandler
+
 # Create logger for jplotlib
 logger = logging.getLogger(__name__)
 # Chunk size dimension
@@ -56,18 +59,37 @@ IGNORE_PATTERNS = ["*.swp", "*.goutputstream*"]
 
 def dropboxignore(func):
     """ Reload scripts functions """
+
     @wraps(func)
     def wrapped(self, event):
         # Check before create if match with dropboxignore
         if event.src_path == os.path.join(self.folder, self.dropboxignore):
             self.excludes = self.loadDropboxIgnore()
         return func(self, event)
+
     return wrapped
+
+
+def get_refresh_token(app_key, app_secret):
+    auth_flow = DropboxOAuth2FlowNoRedirect(app_key, app_secret, token_access_type='offline')
+    authorize_url = auth_flow.start()
+    logger.info("1. Go to: " + authorize_url)
+    logger.info("2. Click \"Allow\" (you might have to log in first).")
+    logger.info("3. Copy the authorization code.")
+    auth_code = input("Enter the authorization code here: ").strip()
+    try:
+        oauth_result = auth_flow.finish(auth_code)
+    except Exception as e:
+        print('Error: %s' % (e,))
+        exit(1)
+    return oauth_result.refresh_token
 
 
 class UpDown(Thread, PatternMatchingEventHandler):
 
-    def __init__(self, token, dbfolder, folder, dropboxignore=".dropboxignore", interval=0.5, overwrite=""):
+    def __init__(self, app_key, app_secret, refresh_token, dbfolder, folder, dropboxignore=".dropboxignore",
+                 interval=0.5,
+                 overwrite=""):
         Thread.__init__(self)
         PatternMatchingEventHandler.__init__(self, ignore_patterns=IGNORE_PATTERNS)
         self.db_folder = dbfolder
@@ -75,22 +97,27 @@ class UpDown(Thread, PatternMatchingEventHandler):
         self.dropboxignore = dropboxignore
         self.interval = interval
         self.overwrite = overwrite
+
+        if not refresh_token:
+            logger.info("Refresh token not set. Calling dropbox API to generate it.")
+            refresh_token = get_refresh_token(app_key, app_secret)
+            logger.info("Refresh token retreived : '" + refresh_token + "' (keep it for next run)")
         # Load dropbox library
-        self.dbx = dropbox.Dropbox(token)
+        self.dbx = dropbox.Dropbox(app_key=app_key, app_secret=app_secret, oauth2_refresh_token=refresh_token)
         # Load DropboxIgnore list
         self.excludes = self.loadDropboxIgnore()
         # Status initialization
-        logger.debug(f"Dropbox folder name: {dbfolder}")
+        logger.info(f"Dropbox folder name: {dbfolder}")
         logger.debug(f"Local directory: {folder}")
 
     def run(self):
         while not self.stopped.wait(self.interval):
             logger.debug("Dropbox remote sync")
-            # Syncronize from Dropbox first
+            # Synchronize from Dropbox first
             self.syncFromDropbox(overwrite=True)
             # List of all files
             self.syncFromHost(overwrite=False, remove=True)
-            # Syncronize from Dropbox first
+            # Synchronize from Dropbox first
             self.syncFromDropbox(overwrite=True)
 
     def start(self):
@@ -157,6 +184,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
         self.move(src_subfolder, dest_subfolder)
 
     def syncFromHost(self, overwrite=False, remove=False):
+        logger.info("Start sync from host")
         for dn, dirs, files in os.walk(self.folder):
             # Get local folder
             subfolder = dn[len(self.folder):].strip(os.path.sep)
@@ -198,6 +226,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
                     shutil.rmtree(fullname)
 
     def syncFromDropbox(self, subfolder="", overwrite=False):
+        logger.info("Start sync from dropbox")
         for nname, md in self.list_folder(subfolder).items():
             path = self.folder + subfolder + "/" + nname
             # Check if is a file
@@ -208,7 +237,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
                     mtime = os.path.getmtime(path)
                     mtime_dt = datetime(*time.gmtime(mtime)[:6])
                     size = os.path.getsize(path)
-                    if(mtime_dt == md.client_modified and size == md.size):
+                    if (mtime_dt == md.client_modified and size == md.size):
                         logger.debug(f"{nname} is already synced [stats match]")
                     else:
                         if not overwrite:
@@ -218,7 +247,8 @@ class UpDown(Thread, PatternMatchingEventHandler):
                             basename = os.path.basename(path)
                             name_file = basename.split(".")[0]
                             date = f"{mtime_dt}".replace(" ", "_").replace(":", "")
-                            path = os.path.join(os.path.dirname(path), basename.replace(name_file, f"{name_file}_CONFLICT_{date}_"))
+                            path = os.path.join(os.path.dirname(path),
+                                                basename.replace(name_file, f"{name_file}_CONFLICT_{date}_"))
                             logger.warn(f"Rename in {path}")
                         # Store file
                         self.storefile(res, path, md.client_modified)
@@ -348,7 +378,8 @@ class UpDown(Thread, PatternMatchingEventHandler):
                         return None
             else:
                 upload_session_start_result = self.dbx.files_upload_session_start(f.read(CHUNK_SIZE))
-                cursor = dropbox.files.UploadSessionCursor(session_id=upload_session_start_result.session_id, offset=f.tell())
+                cursor = dropbox.files.UploadSessionCursor(session_id=upload_session_start_result.session_id,
+                                                           offset=f.tell())
                 commit = dropbox.files.CommitInfo(path=path)
                 # Upload file
                 with self.stopwatch(f"upload {file_size} bytes"):
@@ -385,7 +416,8 @@ class UpDown(Thread, PatternMatchingEventHandler):
             to_path = to_path.replace('//', '/')
         with self.stopwatch('move'):
             try:
-                self.dbx.files_move("/" + from_path, "/" + to_path, allow_shared_folder=False, autorename=overwrite, allow_ownership_transfer=False)
+                self.dbx.files_move("/" + from_path, "/" + to_path, allow_shared_folder=False, autorename=overwrite,
+                                    allow_ownership_transfer=False)
             except dropbox.exceptions.ApiError as err:
                 logger.error(f"API error {err}")
                 return False

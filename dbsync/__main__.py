@@ -26,7 +26,8 @@ import sys
 import os
 import time
 # Package imports
-from .updown import UpDown
+from updown import UpDown
+
 # Create logger for jplotlib
 logger = logging.getLogger(__name__)
 
@@ -50,21 +51,24 @@ def main():
     directories, and avoids duplicate uploads by comparing size and
     mtime with the server.
     """
-    # OAuth2 access token.
-    TOKEN = os.environ['DROPBOX_TOKEN'] if "DROPBOX_TOKEN" in os.environ else ""
-    FOLDER = os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else ""
-    ROOTDIR = os.environ['DROPBOX_ROOTDIR'] if "DROPBOX_ROOTDIR" in os.environ else "~/Downloads"
-    INTERVAL = int(os.environ['DROPBOX_INTERVAL']) if "DROPBOX_INTERVAL" in os.environ else 10
 
     parser = argparse.ArgumentParser(description='Sync ~/dropbox to Dropbox')
-    parser.add_argument('--rootdir', default=ROOTDIR,
+    parser.add_argument('--rootdir',
+                        default=os.environ['DROPBOX_ROOTDIR'] if "DROPBOX_ROOTDIR" in os.environ else "~/Downloads",
                         help='Local directory to upload')
-    parser.add_argument('--folder', '-f', default=FOLDER,
+    parser.add_argument('--folder', '-f',
+                        default=os.environ['DROPBOX_FOLDER'] if "DROPBOX_FOLDER" in os.environ else "",
                         help='Folder name in your Dropbox')
-    parser.add_argument('--token', '-t', default=TOKEN,
-                        help='Access token '
-                        '(see https://www.dropbox.com/developers/apps)')
-    parser.add_argument('--interval', '-i', default=INTERVAL,
+    parser.add_argument('--appKey', default=os.environ['DROPBOX_APP_KEY'] if "DROPBOX_APP_KEY" in os.environ else "",
+                        help='Application key')
+    parser.add_argument('--appSecret',
+                        default=os.environ['DROPBOX_APP_SECRET'] if "DROPBOX_APP_SECRET" in os.environ else "",
+                        help='Application secret')
+    parser.add_argument('--refreshToken',
+                        default=os.environ['DROPBOX_REFRESH_TOKEN'] if "DROPBOX_REFRESH_TOKEN" in os.environ else "",
+                        help='Refresh token')
+    parser.add_argument('--interval', '-i',
+                        default=int(os.environ['DROPBOX_INTERVAL']) if "DROPBOX_INTERVAL" in os.environ else 10,
                         help='Interval to sync from dropbox')
     parser.add_argument('--fromDropbox', action='store_true',
                         help='Direction to synchronize Dropbox')
@@ -78,9 +82,10 @@ def main():
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=level, format='%(name)s - %(levelname)s - %(message)s')
     # Check token
-    if not args.token:
-        print(f"{bcolors.FAIL}token cannot be empty{bcolors.ENDC}")
+    if not (args.appKey and args.appSecret):
+        print(f"{bcolors.FAIL}app key, app secret and refresh token must be set{bcolors.ENDC}")
         sys.exit(2)
+
     # Check folders
     folder = args.folder
     rootdir = os.path.expanduser(args.rootdir)
@@ -97,8 +102,11 @@ def main():
         overwrite = "host"
     else:
         overwrite = ""
-    # Start updown sync
-    updown = UpDown(args.token, folder, rootdir, interval=args.interval, overwrite=overwrite)
+
+    # Start updown sync with refresh token, designed for long living
+    updown = UpDown(args.appKey, args.appSecret, args.refreshToken, folder, rootdir, interval=args.interval,
+                    overwrite=overwrite)
+
     # Run observer
     logger.info("Server started")
     updown.start()
