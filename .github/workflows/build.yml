@@ -69,7 +69,7 @@ jobs:
         push: ${{ github.actor != 'dependabot[bot]' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        platforms: linux/arm64, linux/amd64
+        platforms: linux/arm64, linux/amd64, linux/arm/v7
 
   update_docker_description:
     name: Update docker description 
