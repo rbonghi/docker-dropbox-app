@@ -97,12 +97,3 @@ For `[options]`:
 * **--fromLocal** or **--fromDropbox** Read [Configuration](#configuration)
 * **--interval** [default=60s] The Interval to sync from Dropbox in **--fromDropbox** mode
 * **--refreshToken** Set the refresh token retrieved and logged in the console at first launch or via the init_script. (This will avoid the manual acceptation step via a generated access code in the navigator)
-
-# Make manifest for amd64 and arm
-Use this manifest for multi architect version
-```
-docker manifest create rbonghi/dropbox:latest rbonghi/dropbox:amd64-latest rbonghi/dropbox:arm64-latest
-docker manifest annotate --os linux --arch arm64 --variant armv8 rbonghi/dropbox:latest rbonghi/dropbox:arm64-latest
-docker manifest push rbonghi/dropbox:latest
-```
-
