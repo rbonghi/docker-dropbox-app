@@ -26,7 +26,7 @@ import sys
 import os
 import time
 # Package imports
-from updown import UpDown
+from dbsync import UpDown
 
 # Create logger for jplotlib
 logger = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ def main():
     logging.basicConfig(level=level, format='%(name)s - %(levelname)s - %(message)s')
     # Check token
     if not (args.appKey and args.appSecret):
-        print(f"{bcolors.FAIL}app key, app secret and refresh token must be set{bcolors.ENDC}")
+        print(f"{bcolors.FAIL}app key and app secret must be set{bcolors.ENDC}")
         sys.exit(2)
 
     # Check folders
