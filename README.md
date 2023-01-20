@@ -1,9 +1,15 @@
 # docker-dropbox-app
 :whale: Docker syncronization container for Dropbox using a token app 
 
-[![](https://images.microbadger.com/badges/version/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/rbonghi/dropbox.svg)](https://microbadger.com/images/rbonghi/dropbox "Get your own image badge on microbadger.com") 
-
-Docker hub repos: https://hub.docker.com/r/rbonghi/dropbox
+<p align="center">
+  <a href="https://hub.docker.com/r/rbonghi/dropbox"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/rbonghi/dropbox" /></a>
+  <a href="https://github.com/rbonghi/docker-dropbox-app/actions/workflows/build.yml"><img alt="Build" src="https://github.com/rbonghi/docker-dropbox-app/actions/workflows/build.yml/badge.svg" /></a>
+</p>
+<p align="center">
+  <a href="https://twitter.com/raffaello86"><img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/raffaello86?style=social" /></a>
+  <a href="https://www.instagram.com/robo.panther/"><img alt="robo.panther" src="https://img.shields.io/badge/Follow:-robo.panther-E4405F?style=social&logo=instagram" /></a>
+  <a href="https://discord.gg/BFbuJNhYzS"><img alt="Join our Discord" src="https://img.shields.io/discord/1060563771048861817?color=%237289da&label=discord" /></a>
+</p>
 
 When your docker is ready, all files and folders will be sync in **realtime**. A watchdog check every time if a file or folder is created, deleted or modified, and will be update your dropbox folder.
 
