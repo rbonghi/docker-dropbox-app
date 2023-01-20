@@ -2,8 +2,10 @@
 :whale: Docker syncronization container for Dropbox using a token app 
 
 <p align="center">
+  <a href="https://hub.docker.com/r/rbonghi/dropbox"><img alt="Docker Image Size (tag)" src="https://img.shields.io/docker/image-size/rbonghi/dropbox/latest"></a>
   <a href="https://hub.docker.com/r/rbonghi/dropbox"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/rbonghi/dropbox" /></a>
   <a href="https://github.com/rbonghi/docker-dropbox-app/actions/workflows/build.yml"><img alt="Build" src="https://github.com/rbonghi/docker-dropbox-app/actions/workflows/build.yml/badge.svg" /></a>
+  <a href="https://github.com/rbonghi/docker-dropbox-app/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/rbonghi/docker-dropbox-app/actions/workflows/github-code-scanning/codeql/badge.svg" /></a>
 </p>
 <p align="center">
   <a href="https://twitter.com/raffaello86"><img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/raffaello86?style=social" /></a>
