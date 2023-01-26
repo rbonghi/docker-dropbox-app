@@ -1,6 +1,6 @@
 # docker-dropbox-app
 
-:whale: Docker synchronization container for Dropbox using a token app
+🐳 Docker synchronization container for Dropbox using a token app
 
 <p align="center">
   <a href="https://hub.docker.com/r/rbonghi/dropbox"><img alt="Docker Image Size (tag)" src="https://img.shields.io/docker/image-size/rbonghi/dropbox/latest"></a>
