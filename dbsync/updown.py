@@ -95,7 +95,7 @@ class UpDown(Thread, PatternMatchingEventHandler):
         self.db_folder = dbfolder
         self.folder = folder
         self.dropboxignore = dropboxignore
-        self.interval = interval
+        self.interval = int(interval)
         self.overwrite = overwrite
 
         if not refresh_token:
